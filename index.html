@@ -114,6 +114,10 @@
         h5.text-amber-900 { color: #78350f !important; }  
         h4.text-emerald-900 { color: #064e3b !important; }  
         h4.text-red-800 { color: #991b1b !important; }  
+        /* استثناء إضافي: أي عنوان داخل حاوية ملوّنة مصمَّمة عمداً بلون أبيض (رأس أي نافذة منبثقة ملونة)   
+           يبقى أبيض دائماً بغض النظر عن لون النصوص المخصص، لضمان التباين والوضوح على الخلفيات الملونة.   
+           هذا يغطي حالة أن العنوان نفسه لا يملك كلاس لون خاص به، بل يرث الأبيض من الحاوية الأصل  */  
+        .text-white h1, .text-white h2, .text-white h3, .text-white h4, .text-white h5, .text-white h6 { color: #ffffff !important; }  
 
         /* لون مسمى المركز بالترويسة العلوية، قابل للتخصيص من الإعدادات (افتراضياً أبيض لوضوحه على الخلفية الخضراء) */  
         #center-title-display { color: var(--header-title-color, #ffffff) !important; }  
