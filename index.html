@@ -3709,6 +3709,7 @@ function doGet(e) {
                         attachFirebaseListener();  
                     }).catch(function (authErr) {  
                         console.error('Firebase anonymous auth failed:', authErr);  
+                        updateFirebaseStatusUI(false, { code: 'auth-failed: ' + (authErr.code || authErr.message || authErr) });  
                         // في حال فشلت المصادقة (مثلاً لم تُفعَّل بعد من لوحة Firebase)، نحاول الاتصال   
                         // مباشرة كما كان سابقاً، حتى لا يتعطل النظام كلياً لمن لم يُفعّل هذه الطبقة بعد  
                         attachFirebaseListener();  
@@ -3751,7 +3752,7 @@ function doGet(e) {
             }, function (error) {  
                 console.error('Firebase listener error:', error);  
                 firebaseConnected = false;  
-                updateFirebaseStatusUI(false);  
+                updateFirebaseStatusUI(false, error);  
             });  
         }  
 
@@ -3820,12 +3821,16 @@ function doGet(e) {
             }  
         }  
 
-        function updateFirebaseStatusUI(connected) {  
+        function updateFirebaseStatusUI(connected, error) {  
             const el = document.getElementById('firebase-connection-status');  
             if (!el) return;  
             if (connected) {  
                 el.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-600"></i> متصل بقاعدة البيانات الحية — كل الأجهزة تتحدث تلقائياً بدون أي خطوة إضافية';  
                 el.className = "text-emerald-700 font-bold";  
+            } else if (error) {  
+                const errCode = error.code || error.message || String(error);  
+                el.innerHTML = `<i class="fa-solid fa-circle-exclamation text-rose-600"></i> فشل الاتصال — رسالة الخطأ الدقيقة: <span class="font-mono" dir="ltr">${errCode}</span>`;  
+                el.className = "text-rose-600 font-bold";  
             } else {  
                 el.innerText = firebaseConfig ? "جارِ محاولة الاتصال..." : "غير متصل بقاعدة بيانات حية حالياً";  
                 el.className = "text-gray-400";  
