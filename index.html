@@ -15,6 +15,7 @@
     <!-- Firebase Realtime Database: يوفّر مزامنة حية فورية بين كل الأجهزة بدون أي خطوات يدوية -->  
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" defer></script>  
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js" defer></script>  
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" defer></script>  
     <!-- مكتبة الأيقونات FontAwesome -->  
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">  
       
@@ -108,10 +109,14 @@
         .border-custom-accent { border-color: var(--accent-color); }  
 
         /* تباين نصي أعمق قليلاً للعناوين الرئيسية داخل الجداول والبطاقات لراحة القراءة */  
-        h1, h2, h3, h4, h5, h6 { color: var(--ink); }  
+        h1, h2, h3, h4, h5, h6 { color: var(--ink) !important; }  
+        /* استثناء: عناوين ذات دلالة لونية خاصة (تحذير/نجاح) تبقى بلونها الدلالي بغض النظر عن لون النصوص المخصص */  
+        h5.text-amber-900 { color: #78350f !important; }  
+        h4.text-emerald-900 { color: #064e3b !important; }  
+        h4.text-red-800 { color: #991b1b !important; }  
 
         /* لون مسمى المركز بالترويسة العلوية، قابل للتخصيص من الإعدادات (افتراضياً أبيض لوضوحه على الخلفية الخضراء) */  
-        #center-title-display { color: var(--header-title-color, #ffffff); }  
+        #center-title-display { color: var(--header-title-color, #ffffff) !important; }  
 
         /* خلفية شاشة تسجيل الدخول، قابلة للتخصيص من الإعدادات (افتراضياً نفس لون خلفية المنظومة الدافئ) */  
         .login-screen-bg { background-color: var(--login-bg-color, #fcfbfa); }  
@@ -1234,6 +1239,38 @@
                         </tbody>  
                     </table>  
                 </div>  
+
+                <!-- سجل أولياء الأمور -->  
+                <div class="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-4 mt-2">  
+                    <div class="flex justify-between items-center pb-3 border-b border-gray-100">  
+                        <div>  
+                            <h4 class="font-bold text-gray-800 text-sm flex items-center gap-2">  
+                                <i class="fa-solid fa-user-shield text-custom-primary"></i> سجل أولياء الأمور  
+                            </h4>  
+                            <p class="text-[11px] text-gray-400">سجل مستقل لكل ولي أمر، مرتبط تلقائياً بجميع أبنائه المسجلين بالمنظومة. يُضاف ولي الأمر تلقائياً عند تسجيل أول طالب له، أو يُختار من هذا السجل عند تسجيل طالب إضافي.</p>  
+                        </div>  
+                        <button onclick="printSection('guardians-table-container', 'سجل أولياء الأمور')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-2 rounded-lg font-bold transition flex items-center gap-1.5 no-print">  
+                            <i class="fa-solid fa-print"></i> طباعة  
+                        </button>  
+                    </div>  
+                    <div class="overflow-x-auto border border-gray-100 rounded-lg" id="guardians-table-container">  
+                        <table class="w-full text-sm text-right border-collapse">  
+                            <thead>  
+                                <tr class="bg-custom-primary text-white">  
+                                    <th class="p-3">اسم ولي الأمر</th>  
+                                    <th class="p-3">الهاتف</th>  
+                                    <th class="p-3">البريد الإلكتروني</th>  
+                                    <th class="p-3">رقم البطاقة</th>  
+                                    <th class="p-3 text-center">الأبناء المسجلون</th>  
+                                    <th class="p-3 text-center">الإجراءات</th>  
+                                </tr>  
+                            </thead>  
+                            <tbody id="guardians-tbody" class="divide-y divide-gray-200 text-gray-700">  
+                                <!-- تعبأ ديناميكياً -->  
+                            </tbody>  
+                        </table>  
+                    </div>  
+                </div>  
             </div>  
   
             <!-- 10 & 11 & 12. إدخال الإنجازات، الاختبارات والتقييم (صلاحية 10، 11، 12) -->  
@@ -1720,15 +1757,19 @@
                             <li>اذهب إلى <strong dir="ltr">console.firebase.google.com</strong> وسجّل الدخول بحساب Google.</li>  
                             <li>اضغط "Add project" وأنشئ مشروعاً جديداً بأي اسم (مثال: samail-quran).</li>  
                             <li>من القائمة اليسرى: Build ← Realtime Database ← Create Database ← اختر "Start in test mode" مبدئياً.</li>  
-                            <li>بعد الإنشاء، اذهب لتبويب "Rules" داخل Realtime Database، واستبدل المحتوى بـ:<br>  
-                                <code dir="ltr" class="block bg-gray-900 text-emerald-300 p-2 rounded mt-1">{"rules": {".read": true, ".write": true}}</code>  
+                            <li>من القائمة اليسرى أيضاً: Build ← Authentication ← Get started ← من تبويب "Sign-in method"، فعّل مزوّد <strong>"Anonymous"</strong> (هذه طبقة حماية إضافية مهمة، فعّلها حتى لو بدت غير ضرورية الآن).</li>  
+                            <li>ارجع لتبويب "Rules" داخل Realtime Database، واستبدل المحتوى بـ:<br>  
+                                <code dir="ltr" class="block bg-gray-900 text-emerald-300 p-2 rounded mt-1">{"rules": {".read": "auth != null", ".write": "auth != null"}}</code>  
                                 ثم اضغط "Publish".  
                             </li>  
                             <li>ارجع لإعدادات المشروع (⚙️ Project settings) ← انزل لقسم "Your apps" ← اضغط أيقونة الويب <strong>&lt;/&gt;</strong> لإنشاء تطبيق ويب جديد.</li>  
                             <li>انسخ الكائن الكامل الذي يظهر أمامك باسم <code dir="ltr">firebaseConfig</code> (يبدأ بـ <code dir="ltr">const firebaseConfig = &#123;...&#125;</code>) والصق **المحتوى بين الأقواس المعقوفة فقط** بالحقل أعلاه.</li>  
                         </ol>  
+                        <p class="mt-2 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg p-2 leading-relaxed">  
+                            <i class="fa-solid fa-shield-halved"></i> <strong>طبقة الحماية الإضافية:</strong> بقواعد <code dir="ltr">"auth != null"</code> أعلاه، لم يعد بإمكان أي طرف قراءة أو تعديل بياناتك عبر رابط قاعدة البيانات مباشرة (مثل الروبوتات والماسحات الآلية التي تبحث عن قواعد بيانات Firebase العامة على الإنترنت) — يجب المرور عبر تطبيقك أولاً، الذي يقوم بمصادقة مجهولة تلقائياً خلف الكواليس.  
+                        </p>  
                         <p class="mt-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 leading-relaxed">  
-                            <i class="fa-solid fa-triangle-exclamation"></i> <strong>تنبيه أمني صادق:</strong> بالإعداد أعلاه (وضع "test mode")، أي شخص يحصل على رابط قاعدة بياناتك (وهو مختلف تماماً عن رابط موقعك) يمكنه نظرياً قراءة أو تعديل البيانات مباشرة. لن يحدث هذا ما لم تشارك إعدادات Firebase مع أحد لا تثق به. لا تنشر هذه الإعدادات علناً. لأمان أعلى لاحقاً، أخبرني وسنضيف طبقة تحقق إضافية.  
+                            <i class="fa-solid fa-triangle-exclamation"></i> <strong>تنبيه أمني صادق (يبقى قائماً حتى مع هذه الطبقة):</strong> بما أن إعدادات Firebase مضمّنة داخل كود موقعك العلني، فإن شخصاً متمكناً تقنياً يقرأ الكود يمكنه نظرياً نسخ الإعدادات واستخدامها لإجراء مصادقة مجهولة خاصة به هو أيضاً، ثم الوصول لبياناتك. هذه الطبقة ترفع مستوى الحماية بشكل كبير وتوقف أغلب المحاولات الآلية العشوائية، لكنها ليست حماية مطلقة ضد شخص مستهدف تقنياً بشكل متعمّد. لحماية أقوى من ذلك، يتطلب الأمر بناء خادم خلفي حقيقي (Backend) — أخبرني إن رغبت بمناقشة ذلك مستقبلاً.  
                         </p>  
                     </details>  
                 </div>  
@@ -1914,28 +1955,47 @@ function doGet(e) {
   
     <!-- 1. نافذة تسجيل طالب جديد (Modal) -->  
     <div id="student-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">  
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden border text-right">  
-            <div class="bg-custom-primary text-white px-6 py-4 flex justify-between items-center">  
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-3xl overflow-hidden border text-right max-h-[94vh] flex flex-col">  
+            <div class="bg-custom-primary text-white px-6 py-4 flex justify-between items-center flex-shrink-0">  
                 <h4 class="font-bold amiri-title text-lg flex items-center gap-2">  
-                    <i class="fa-solid fa-user-plus text-custom-accent"></i> <span data-term-id="modal_add_student_title">تسجيل طالب جديد بالمنظومة</span>  
+                    <i class="fa-solid fa-user-plus text-custom-accent"></i> <span data-term-id="modal_add_student_title">استمارة تسجيل طالب جديد</span>  
                 </h4>  
                 <button onclick="toggleModal('student-modal', false)" class="text-white hover:text-red-300">  
                     <i class="fa-solid fa-xmark text-lg"></i>  
                 </button>  
             </div>  
               
-            <form id="student-form" onsubmit="submitStudentForm(event)" class="p-6 space-y-4">  
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">  
-                    <div>  
+            <form id="student-form" onsubmit="submitStudentForm(event)" class="p-6 space-y-4 overflow-y-auto custom-scrollbar">  
+
+                <div class="bg-custom-primary-light border border-custom-primary/20 rounded-xl p-3 flex items-center justify-between">  
+                    <span class="text-xs font-bold text-custom-primary">الرقم التعريفي الذي سيُخصَّص لهذا الطالب تلقائياً</span>  
+                    <span id="std-new-id-preview" class="text-lg font-bold text-custom-primary font-mono">—</span>  
+                </div>  
+
+                <h5 class="text-xs font-bold text-gray-700 border-b pb-1.5 flex items-center gap-1.5"><i class="fa-solid fa-id-card text-custom-primary"></i> بيانات الطالب</h5>  
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">  
+                    <div class="md:col-span-2">  
                         <label class="block text-xs font-bold text-gray-600 mb-1" data-term-id="modal_student_name_lbl">اسم الطالب الثلاثي والقبيلة</label>  
                         <input type="text" id="std-fullname" required class="w-full text-xs border border-gray-300 rounded p-2 focus:ring-1 focus:ring-custom-primary focus:outline-none" placeholder="مثال: طالب أ">  
                     </div>  
                     <div>  
-                        <label class="block text-xs font-bold text-gray-600 mb-1" data-term-id="modal_student_age_lbl">عمر الطالب بالسنوات</label>  
+                        <label class="block text-xs font-bold text-gray-600 mb-1" data-term-id="modal_student_age_lbl">العمر بالسنوات</label>  
                         <input type="number" id="std-age" required class="w-full text-xs border border-gray-300 rounded p-2 focus:ring-1 focus:ring-custom-primary focus:outline-none" placeholder="مثال: 12">  
                     </div>  
                 </div>  
-  
+                <div>  
+                    <label class="block text-xs font-bold text-gray-600 mb-1.5">الجنس</label>  
+                    <div class="flex gap-4">  
+                        <label class="flex items-center gap-1.5 text-xs font-bold text-gray-700 cursor-pointer">  
+                            <input type="radio" name="std-gender" value="ذكر" checked class="w-4 h-4 text-custom-primary"> ذكر  
+                        </label>  
+                        <label class="flex items-center gap-1.5 text-xs font-bold text-gray-700 cursor-pointer">  
+                            <input type="radio" name="std-gender" value="أنثى" class="w-4 h-4 text-custom-primary"> أنثى  
+                        </label>  
+                    </div>  
+                </div>  
+
+                <h5 class="text-xs font-bold text-gray-700 border-b pb-1.5 pt-2 flex items-center gap-1.5"><i class="fa-solid fa-book-quran text-custom-primary"></i> بيانات التسجيل التعليمي</h5>  
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">  
                     <div>  
                         <label class="block text-xs font-bold text-gray-600 mb-1" data-term-id="modal_student_branch_lbl">الحلقة التابع لها الطالب</label>  
@@ -1958,11 +2018,18 @@ function doGet(e) {
                     </select>  
                     <p class="text-[10px] text-gray-400 mt-1">تظهر هنا فقط المعلمات المكلَّفات بتدريس هذا البرنامج تحديداً في هذه الحلقة (تُضبط التكليفات من بطاقة الموظف).</p>  
                 </div>  
-  
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">  
+
+                <h5 class="text-xs font-bold text-gray-700 border-b pb-1.5 pt-2 flex items-center gap-1.5"><i class="fa-solid fa-user-shield text-custom-primary"></i> بيانات ولي الأمر</h5>  
+                <div>  
+                    <label class="block text-xs font-bold text-gray-600 mb-1">اختر ولي الأمر من السجل، أو أضف ولياً جديداً</label>  
+                    <select id="std-guardian-select" onchange="onGuardianSelectedForStudent()" class="w-full text-xs border border-gray-300 rounded p-2 bg-white">  
+                        <option value="">— أضف ولي أمر جديد —</option>  
+                    </select>  
+                </div>  
+                <div id="std-new-guardian-fields" class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 border border-gray-200 rounded-xl p-3">  
                     <div>  
                         <label class="block text-xs font-bold text-gray-600 mb-1" data-term-id="modal_student_guardian_lbl">اسم ولي الأمر بالكامل</label>  
-                        <input type="text" id="std-guardian" required class="w-full text-xs border border-gray-300 rounded p-2" placeholder="مثال: ولي أمر طالب أ">  
+                        <input type="text" id="std-guardian" required class="w-full text-xs border border-gray-300 rounded p-2 bg-white" placeholder="مثال: ولي أمر طالب أ">  
                     </div>  
                     <div>  
                         <label class="block text-xs font-bold text-gray-600 mb-1" data-term-id="modal_student_relation_lbl">صلة القرابة</label>  
@@ -1974,12 +2041,20 @@ function doGet(e) {
                         </select>  
                     </div>  
                     <div>  
-                        <label class="block text-xs font-bold text-gray-600 mb-1" data-term-id="modal_student_phone_lbl">رقم هاتف ولي الأمر (للتواصل)</label>  
-                        <input type="tel" id="std-phone" required class="w-full text-xs border border-gray-300 rounded p-2 text-left" placeholder="968xxxxxxx">  
+                        <label class="block text-xs font-bold text-gray-600 mb-1" data-term-id="modal_student_phone_lbl">رقم الهاتف (للتواصل)</label>  
+                        <input type="tel" id="std-phone" required class="w-full text-xs border border-gray-300 rounded p-2 text-left bg-white" placeholder="968xxxxxxx">  
+                    </div>  
+                    <div>  
+                        <label class="block text-xs font-bold text-gray-600 mb-1">رقم البطاقة الشخصية (اختياري)</label>  
+                        <input type="text" id="std-guardian-idcard" class="w-full text-xs border border-gray-300 rounded p-2 text-left font-mono bg-white" placeholder="XXXXXXXX">  
+                    </div>  
+                    <div class="md:col-span-2">  
+                        <label class="block text-xs font-bold text-gray-600 mb-1">البريد الإلكتروني (اختياري)</label>  
+                        <input type="email" id="std-guardian-email" class="w-full text-xs border border-gray-300 rounded p-2 text-left bg-white" placeholder="guardian@example.com">  
                     </div>  
                 </div>  
-  
-                <div class="bg-custom-accent-light border border-custom-accent/20 p-4 rounded-xl space-y-2">  
+
+                <div id="std-discount-panel" class="bg-custom-accent-light border border-custom-accent/20 p-4 rounded-xl space-y-2">  
                     <h5 class="text-xs font-bold text-custom-primary flex items-center gap-1.5" data-term-id="modal_discount_title">  
                         <i class="fa-solid fa-hand-holding-hand"></i> ميزة مرونة الرسوم والتخفيض الاجتماعي للطلاب المحتاجين:  
                     </h5>  
@@ -1995,7 +2070,17 @@ function doGet(e) {
                         </div>  
                     </div>  
                 </div>  
-  
+
+                <h5 class="text-xs font-bold text-gray-700 border-b pb-1.5 pt-2 flex items-center gap-1.5"><i class="fa-solid fa-signature text-custom-primary"></i> إقرار وتوقيع ولي الأمر</h5>  
+                <p class="text-[10px] text-gray-500 -mt-2">أقرّ بصحة البيانات أعلاه وموافقتي على تسجيل ابني/ابنتي بالمركز وفق الشروط والرسوم الموضحة.</p>  
+                <div class="border border-gray-300 rounded-xl overflow-hidden bg-white">  
+                    <canvas id="std-signature-pad" class="w-full touch-none cursor-crosshair" height="140" style="background:#fdfdfd;"></canvas>  
+                </div>  
+                <div class="flex justify-between items-center">  
+                    <span class="text-[10px] text-gray-400">وقّع بإصبعك أو بالفأرة داخل المربع أعلاه</span>  
+                    <button type="button" onclick="clearSignaturePad()" class="text-[11px] text-rose-600 font-bold underline underline-offset-2">مسح التوقيع وإعادة المحاولة</button>  
+                </div>  
+
                 <div class="flex justify-end gap-2 pt-4">  
                     <button type="button" onclick="toggleModal('student-modal', false)" class="bg-gray-100 text-gray-700 text-xs px-4 py-2 rounded-lg font-bold hover:bg-gray-200" data-term-id="modal_cancel_btn">  
                         إلغاء التعبئة  
@@ -2007,7 +2092,7 @@ function doGet(e) {
             </form>  
         </div>  
     </div>  
-  
+
     <!-- 1ب. نافذة تسجيل موظف جديد بالسجل العام (بدون صلاحية دخول) (Modal) -->  
     <div id="hr-employee-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">  
         <div class="card-elevated bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border text-right max-h-[92vh] flex flex-col">  
@@ -2027,6 +2112,17 @@ function doGet(e) {
                 <div>  
                     <label class="block text-xs font-bold text-gray-600 mb-1">المسمى الوظيفي</label>  
                     <input type="text" id="hr-job-title" required placeholder="مثال: معلمة أولى / منسقة شؤون مالية" class="w-full text-xs border border-gray-300 rounded p-2.5">  
+                </div>  
+                <div>  
+                    <label class="block text-xs font-bold text-gray-600 mb-1.5">الجنس</label>  
+                    <div class="flex gap-4">  
+                        <label class="flex items-center gap-1.5 text-xs font-bold text-gray-700 cursor-pointer">  
+                            <input type="radio" name="hr-gender" value="ذكر" checked class="w-4 h-4 text-custom-primary"> ذكر  
+                        </label>  
+                        <label class="flex items-center gap-1.5 text-xs font-bold text-gray-700 cursor-pointer">  
+                            <input type="radio" name="hr-gender" value="أنثى" class="w-4 h-4 text-custom-primary"> أنثى  
+                        </label>  
+                    </div>  
                 </div>  
                 <div class="grid grid-cols-2 gap-4">  
                     <div>  
@@ -2078,6 +2174,45 @@ function doGet(e) {
         </div>  
     </div>  
 
+    <!-- نافذة تعديل بيانات ولي أمر (Modal) -->  
+    <div id="guardian-edit-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">  
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border text-right">  
+            <div class="bg-amber-600 text-white px-6 py-4 flex justify-between items-center">  
+                <h4 class="font-bold amiri-title text-lg flex items-center gap-2">  
+                    <i class="fa-solid fa-user-pen"></i> تعديل بيانات ولي الأمر  
+                </h4>  
+                <button onclick="toggleModal('guardian-edit-modal', false)" class="text-white hover:text-red-300">  
+                    <i class="fa-solid fa-xmark text-lg"></i>  
+                </button>  
+            </div>  
+            <form id="guardian-edit-form" onsubmit="submitEditGuardianForm(event)" class="p-6 space-y-4">  
+                <input type="hidden" id="guardian-edit-id">  
+                <div>  
+                    <label class="block text-xs font-bold text-gray-600 mb-1">اسم ولي الأمر بالكامل</label>  
+                    <input type="text" id="guardian-edit-name" required class="w-full text-xs border border-gray-300 rounded p-2.5">  
+                </div>  
+                <div class="grid grid-cols-2 gap-4">  
+                    <div>  
+                        <label class="block text-xs font-bold text-gray-600 mb-1">رقم الهاتف</label>  
+                        <input type="tel" id="guardian-edit-phone" required class="w-full text-xs border border-gray-300 rounded p-2.5 text-left">  
+                    </div>  
+                    <div>  
+                        <label class="block text-xs font-bold text-gray-600 mb-1">رقم البطاقة الشخصية</label>  
+                        <input type="text" id="guardian-edit-idcard" class="w-full text-xs border border-gray-300 rounded p-2.5 text-left font-mono">  
+                    </div>  
+                </div>  
+                <div>  
+                    <label class="block text-xs font-bold text-gray-600 mb-1">البريد الإلكتروني</label>  
+                    <input type="email" id="guardian-edit-email" class="w-full text-xs border border-gray-300 rounded p-2.5 text-left">  
+                </div>  
+                <div class="flex justify-end gap-2 pt-2">  
+                    <button type="button" onclick="toggleModal('guardian-edit-modal', false)" class="bg-gray-100 text-gray-700 text-xs px-4 py-2 rounded-lg font-bold hover:bg-gray-200">إلغاء</button>  
+                    <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-5 py-2 rounded-lg font-bold shadow transition">حفظ التعديلات</button>  
+                </div>  
+            </form>  
+        </div>  
+    </div>  
+
     <!-- 1ج. نافذة تعديل بيانات موظف من السجل العام (Modal) -->  
     <div id="hr-employee-edit-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">  
         <div class="card-elevated bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border text-right max-h-[92vh] flex flex-col">  
@@ -2098,6 +2233,17 @@ function doGet(e) {
                 <div>  
                     <label class="block text-xs font-bold text-gray-600 mb-1">المسمى الوظيفي</label>  
                     <input type="text" id="hr-edit-job-title" required class="w-full text-xs border border-gray-300 rounded p-2.5 bg-white">  
+                </div>  
+                <div>  
+                    <label class="block text-xs font-bold text-gray-600 mb-1.5">الجنس</label>  
+                    <div class="flex gap-4">  
+                        <label class="flex items-center gap-1.5 text-xs font-bold text-gray-700 cursor-pointer">  
+                            <input type="radio" name="hr-edit-gender" value="ذكر" class="w-4 h-4 text-custom-primary"> ذكر  
+                        </label>  
+                        <label class="flex items-center gap-1.5 text-xs font-bold text-gray-700 cursor-pointer">  
+                            <input type="radio" name="hr-edit-gender" value="أنثى" class="w-4 h-4 text-custom-primary"> أنثى  
+                        </label>  
+                    </div>  
                 </div>  
                 <div class="grid grid-cols-2 gap-4">  
                     <div>  
@@ -2690,7 +2836,8 @@ function doGet(e) {
             { id: 25, name: "عرض التقارير" },  
             { id: 26, name: "تصدير التقارير" },  
             { id: 27, name: "إدارة الإشهارات والتنبيهات" },  
-            { id: 28, name: "تعديل إعدادات النظام" }  
+            { id: 28, name: "تعديل إعدادات النظام" },  
+            { id: 29, name: "منح التخفيضات المالية للطلاب" }  
         ];  
   
         // مصفوفة الصلاحيات الافتراضية لكل دور (تعدل برمجياً بالكامل من الواجهة)  
@@ -2769,6 +2916,8 @@ function doGet(e) {
   
         // سجل الطلاب بالمركز — يبدأ فارغاً تماماً  
         let students = [];  
+        // سجل أولياء الأمور: كل ولي أمر له سجل مستقل مرتبط بكل أبنائه المسجلين  
+        let guardians = [];  
   
         // سجل الحركات المالية (إيرادات ومصروفات) — يبدأ فارغاً تماماً  
         let financialTransactions = [];  
@@ -2897,6 +3046,7 @@ function doGet(e) {
                 ['samail_branches', JSON.stringify(branches)],  
                 ['samail_programs', JSON.stringify(programs)],  
                 ['samail_students', JSON.stringify(students)],  
+                ['samail_guardians', JSON.stringify(guardians)],  
                 ['samail_financialTransactions', JSON.stringify(financialTransactions)],  
                 ['samail_assets', JSON.stringify(assets)],  
                 ['samail_complaints', JSON.stringify(complaints)],  
@@ -3032,6 +3182,9 @@ function doGet(e) {
 
             const loadedStudents = safeLoadJSON('samail_students');  
             if (Array.isArray(loadedStudents)) students = loadedStudents;  
+
+            const loadedGuardians = safeLoadJSON('samail_guardians');  
+            if (Array.isArray(loadedGuardians)) guardians = loadedGuardians;  
 
             const loadedTransactions = safeLoadJSON('samail_financialTransactions');  
             if (Array.isArray(loadedTransactions)) financialTransactions = loadedTransactions;  
@@ -3547,7 +3700,22 @@ function doGet(e) {
                     firebase.initializeApp(firebaseConfig);  
                 }  
                 firebaseDb = firebase.database();  
-                attachFirebaseListener();  
+
+                // مصادقة مجهولة (Anonymous Auth): طبقة حماية إضافية تمنع أي طرف من قراءة أو كتابة   
+                // البيانات مباشرة عبر رابط الشيت الخام دون المرور بتطبيقنا على الأقل، طالما كانت   
+                // قواعد الأمان بقاعدة البيانات تشترط "auth != null"  
+                if (firebase.auth) {  
+                    firebase.auth().signInAnonymously().then(function () {  
+                        attachFirebaseListener();  
+                    }).catch(function (authErr) {  
+                        console.error('Firebase anonymous auth failed:', authErr);  
+                        // في حال فشلت المصادقة (مثلاً لم تُفعَّل بعد من لوحة Firebase)، نحاول الاتصال   
+                        // مباشرة كما كان سابقاً، حتى لا يتعطل النظام كلياً لمن لم يُفعّل هذه الطبقة بعد  
+                        attachFirebaseListener();  
+                    });  
+                } else {  
+                    attachFirebaseListener();  
+                }  
             } catch (e) {  
                 console.error('Firebase init failed:', e);  
                 showNotification("تعذر الاتصال بقاعدة البيانات الحية. تحقق من صحة الإعدادات الملصقة.", "warn");  
@@ -3595,6 +3763,7 @@ function doGet(e) {
                 if (Array.isArray(data.branches)) branches = data.branches;  
                 if (Array.isArray(data.programs)) programs = data.programs;  
                 if (Array.isArray(data.students)) students = data.students;  
+                if (Array.isArray(data.guardians)) guardians = data.guardians;  
                 if (Array.isArray(data.financialTransactions)) financialTransactions = data.financialTransactions;  
                 if (Array.isArray(data.assets)) assets = data.assets;  
                 if (Array.isArray(data.complaints)) complaints = data.complaints;  
@@ -3631,7 +3800,7 @@ function doGet(e) {
         function buildFullStateObject() {  
             return {  
                 systemTerms, rolePermissions, branches, programs, students,  
-                financialTransactions, assets, complaints, achievements, exams,  
+                financialTransactions, assets, complaints, achievements, exams, guardians,  
                 employees, hierarchyOrder, activeTheme, customThemeColors: customThemeColors || null,  
                 customTextColor: customTextColor || null, headerTitleColor: headerTitleColor || null,  
                 loginScreenColor: loginScreenColor || null, systemLogo: systemLogo || null  
@@ -4888,6 +5057,7 @@ function doGet(e) {
             }  
   
             renderHrEmployeesTable();  
+            renderGuardiansTable();  
 
             const staffTbody = document.getElementById('staff-management-tbody');  
             if (staffTbody) {  
@@ -5010,7 +5180,7 @@ function doGet(e) {
                                     ${currentActiveUser && currentActiveUser.role === 'role_0' ? `<button onclick="editStudentId(${s.id})" title="تعديل الرقم التعريفي (الإدارة العامة فقط)" class="text-custom-primary hover:text-custom-accent"><i class="fa-solid fa-pen text-[11px]"></i></button>` : ''}  
                                 </div>  
                             </td>  
-                            <td class="p-3 font-bold text-gray-950">${s.name}</td>  
+                            <td class="p-3 font-bold text-gray-950">${s.name} <i class="fa-solid ${s.gender === 'أنثى' ? 'fa-venus text-pink-400' : 'fa-mars text-blue-400'} text-[10px]" title="${s.gender || 'ذكر'}"></i></td>  
                             <td class="p-3 text-xs text-gray-600">${s.age} سنة</td>  
                             <td class="p-3"><span class="bg-custom-primary-light text-custom-primary text-xs font-bold px-2.5 py-1 rounded">${s.branch}</span></td>  
                             <td class="p-3 text-xs leading-normal">  
@@ -5846,6 +6016,114 @@ function doGet(e) {
             saveToLocalStorage();  
         }  
   
+        // ===== لوحة التوقيع الإلكتروني لولي الأمر: رسم بالفأرة أو باللمس، مع إمكانية المسح =====  
+        let signaturePadInitialized = false;  
+        let isDrawingSignature = false;  
+        let signatureHasContent = false;  
+
+        function initSignaturePad() {  
+            const canvas = document.getElementById('std-signature-pad');  
+            if (!canvas || signaturePadInitialized) return;  
+            signaturePadInitialized = true;  
+
+            const resizeCanvas = () => {  
+                const ratio = window.devicePixelRatio || 1;  
+                const rect = canvas.getBoundingClientRect();  
+                if (rect.width === 0) return;  
+                canvas.width = rect.width * ratio;  
+                canvas.height = 140 * ratio;  
+                const ctx = canvas.getContext('2d');  
+                ctx.scale(ratio, ratio);  
+                ctx.strokeStyle = '#16261f';  
+                ctx.lineWidth = 2;  
+                ctx.lineCap = 'round';  
+                ctx.lineJoin = 'round';  
+            };  
+            resizeCanvas();  
+            window.addEventListener('resize', resizeCanvas);  
+
+            const getPos = (e) => {  
+                const rect = canvas.getBoundingClientRect();  
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;  
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;  
+                return { x: clientX - rect.left, y: clientY - rect.top };  
+            };  
+
+            const startDraw = (e) => {  
+                e.preventDefault();  
+                isDrawingSignature = true;  
+                signatureHasContent = true;  
+                const ctx = canvas.getContext('2d');  
+                const pos = getPos(e);  
+                ctx.beginPath();  
+                ctx.moveTo(pos.x, pos.y);  
+            };  
+            const draw = (e) => {  
+                if (!isDrawingSignature) return;  
+                e.preventDefault();  
+                const ctx = canvas.getContext('2d');  
+                const pos = getPos(e);  
+                ctx.lineTo(pos.x, pos.y);  
+                ctx.stroke();  
+            };  
+            const endDraw = () => { isDrawingSignature = false; };  
+
+            canvas.addEventListener('mousedown', startDraw);  
+            canvas.addEventListener('mousemove', draw);  
+            canvas.addEventListener('mouseup', endDraw);  
+            canvas.addEventListener('mouseleave', endDraw);  
+            canvas.addEventListener('touchstart', startDraw, { passive: false });  
+            canvas.addEventListener('touchmove', draw, { passive: false });  
+            canvas.addEventListener('touchend', endDraw);  
+        }  
+
+        function clearSignaturePad() {  
+            const canvas = document.getElementById('std-signature-pad');  
+            if (!canvas) return;  
+            const ctx = canvas.getContext('2d');  
+            ctx.clearRect(0, 0, canvas.width, canvas.height);  
+            signatureHasContent = false;  
+        }  
+
+        function getSignatureDataOrNull() {  
+            if (!signatureHasContent) return null;  
+            const canvas = document.getElementById('std-signature-pad');  
+            if (!canvas) return null;  
+            try {  
+                return canvas.toDataURL('image/png');  
+            } catch (e) {  
+                return null;  
+            }  
+        }  
+
+        // ===== ولي الأمر: تعبئة قائمة الاختيار وإظهار/إخفاء حقول الإدخال الجديدة تبعاً للاختيار =====  
+        function populateGuardianSelectForStudent() {  
+            const select = document.getElementById('std-guardian-select');  
+            if (!select) return;  
+
+            let html = '<option value="">— أضف ولي أمر جديد —</option>';  
+            guardians.forEach(g => {  
+                html += `<option value="${g.id}">${g.name} (${g.phone})</option>`;  
+            });  
+            select.innerHTML = html;  
+            onGuardianSelectedForStudent();  
+        }  
+
+        function onGuardianSelectedForStudent() {  
+            const select = document.getElementById('std-guardian-select');  
+            const newFieldsWrap = document.getElementById('std-new-guardian-fields');  
+            if (!select || !newFieldsWrap) return;  
+
+            const isNewGuardian = !select.value;  
+            newFieldsWrap.classList.toggle('hidden', !isNewGuardian);  
+
+            const nameInput = document.getElementById('std-guardian');  
+            const phoneInput = document.getElementById('std-phone');  
+            if (nameInput) nameInput.required = isNewGuardian;  
+            if (phoneInput) phoneInput.required = isNewGuardian;  
+        }  
+
+
         function calculateFinalFee() {  
             const progName = document.getElementById('std-program').value;  
             const prog = programs.find(p => p.name === progName);  
@@ -5901,37 +6179,153 @@ function doGet(e) {
 
         function submitStudentForm(event) {  
             event.preventDefault();  
-  
+
             const name = document.getElementById('std-fullname').value.trim();  
             const age = parseInt(document.getElementById('std-age').value);  
+            const genderInput = document.querySelector('input[name="std-gender"]:checked');  
+            const gender = genderInput ? genderInput.value : 'ذكر';  
             const branch = document.getElementById('std-branch').value;  
             const program = document.getElementById('std-program').value;  
-            const guardian = document.getElementById('std-guardian').value.trim();  
-            const relation = document.getElementById('std-relation').value;  
-            const phone = document.getElementById('std-phone').value.trim();  
             const discount = parseFloat(document.getElementById('std-discount').value) || 0;  
             const teacher = document.getElementById('std-teacher').value;  
-  
+
+            // ===== تحديد ولي الأمر: إما اختيار موجود بالسجل، أو إنشاء سجل جديد له =====  
+            const selectedGuardianId = document.getElementById('std-guardian-select').value;  
+            let guardianId, guardianName, relation, phone;  
+
+            if (selectedGuardianId) {  
+                const g = guardians.find(gd => gd.id === parseInt(selectedGuardianId));  
+                if (!g) { showNotification("تعذر العثور على ولي الأمر المختار.", "warn"); return; }  
+                guardianId = g.id;  
+                guardianName = g.name;  
+                relation = document.getElementById('std-relation').value;  
+                phone = g.phone;  
+            } else {  
+                guardianName = document.getElementById('std-guardian').value.trim();  
+                relation = document.getElementById('std-relation').value;  
+                phone = document.getElementById('std-phone').value.trim();  
+                const idCard = document.getElementById('std-guardian-idcard').value.trim();  
+                const email = document.getElementById('std-guardian-email').value.trim();  
+
+                if (!guardianName || !phone) {  
+                    showNotification("يرجى إدخال اسم ولي الأمر ورقم هاتفه، أو اختيار ولي أمر موجود بالسجل.", "warn");  
+                    return;  
+                }  
+
+                const newGuardianId = guardians.length > 0 ? Math.max(...guardians.map(g => g.id)) + 1 : 1;  
+                const newGuardian = { id: newGuardianId, name: guardianName, phone, idCard, email };  
+                guardians.push(newGuardian);  
+                guardianId = newGuardianId;  
+            }  
+
+            const signatureData = getSignatureDataOrNull();  
+
             const prog = programs.find(p => p.name === program);  
             const fee = prog ? prog.fee : 0;  
             const finalFee = Math.max(fee - discount, 0);  
-  
+
             const newStd = {  
                 id: students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 201,  
-                name, age, branch, program, discount, finalFee, paid: false, guardian, relation, phone, teacher  
+                name, age, gender, branch, program, discount, finalFee, paid: false,  
+                guardianId, guardian: guardianName, relation, phone, teacher,  
+                signature: signatureData  
             };  
-  
+
             students.push(newStd);  
             toggleModal('student-modal', false);  
             document.getElementById('student-form').reset();  
-  
-            showNotification(`تم قيد وتسجيل الطالب: [${name}] بنجاح في حلقة [${branch}]`, 'success');  
+            clearSignaturePad();  
+
+            showNotification(`تم قيد وتسجيل الطالب: [${name}] بنجاح في حلقة [${branch}] برقمه التعريفي #${newStd.id}`, 'success');  
             refreshAllViews();  
             saveToLocalStorage();  
             syncRecordToGoogleSheet('students', 'إضافة', newStd);  
         }  
 
         // ===== حذف ملف طالب: يحذف ملفه فقط، مع الإبقاء على السندات المالية التاريخية كسجل محاسبي =====  
+        // ===== سجل أولياء الأمور: عرض، تعديل، حذف =====  
+        function renderGuardiansTable() {  
+            const tbody = document.getElementById('guardians-tbody');  
+            if (!tbody) return;  
+
+            tbody.innerHTML = '';  
+            guardians.forEach(g => {  
+                const childrenCount = students.filter(s => s.guardianId === g.id).length;  
+                tbody.innerHTML += `  
+                    <tr class="hover:bg-gray-50 border-b border-gray-100 transition">  
+                        <td class="p-3 font-semibold text-gray-950">${g.name}</td>  
+                        <td class="p-3 font-mono text-xs text-gray-500" dir="ltr">${g.phone || '—'}</td>  
+                        <td class="p-3 text-xs text-gray-500" dir="ltr">${g.email || '—'}</td>  
+                        <td class="p-3 font-mono text-xs text-gray-500" dir="ltr">${g.idCard || '—'}</td>  
+                        <td class="p-3 text-center"><span class="bg-custom-primary-light text-custom-primary text-xs font-bold px-2 py-1 rounded-full">${childrenCount}</span></td>  
+                        <td class="p-3 text-center">  
+                            <div class="flex items-center justify-center gap-1.5">  
+                                <button onclick="openEditGuardianModal(${g.id})" class="bg-amber-500 hover:bg-amber-600 text-white text-[10px] px-2.5 py-1.5 rounded font-bold shadow transition"><i class="fa-solid fa-pen-to-square"></i></button>  
+                                <button onclick="deleteGuardian(${g.id})" class="bg-red-500 hover:bg-red-600 text-white text-[10px] px-2 py-1.5 rounded font-bold shadow transition" title="حذف ولي الأمر"><i class="fa-solid fa-trash"></i></button>  
+                            </div>  
+                        </td>  
+                    </tr>  
+                `;  
+            });  
+
+            if (guardians.length === 0) {  
+                tbody.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-gray-400"><i class="fa-solid fa-user-shield text-2xl block mb-2 opacity-40"></i>لا يوجد أولياء أمور مسجلون بعد</td></tr>';  
+            }  
+        }  
+
+        function openEditGuardianModal(id) {  
+            const g = guardians.find(gd => gd.id === id);  
+            if (!g) return;  
+
+            document.getElementById('guardian-edit-id').value = g.id;  
+            document.getElementById('guardian-edit-name').value = g.name;  
+            document.getElementById('guardian-edit-phone').value = g.phone || '';  
+            document.getElementById('guardian-edit-idcard').value = g.idCard || '';  
+            document.getElementById('guardian-edit-email').value = g.email || '';  
+
+            toggleModal('guardian-edit-modal', true);  
+        }  
+
+        function submitEditGuardianForm(event) {  
+            event.preventDefault();  
+
+            const id = parseInt(document.getElementById('guardian-edit-id').value);  
+            const g = guardians.find(gd => gd.id === id);  
+            if (!g) return;  
+
+            g.name = document.getElementById('guardian-edit-name').value.trim();  
+            g.phone = document.getElementById('guardian-edit-phone').value.trim();  
+            g.idCard = document.getElementById('guardian-edit-idcard').value.trim();  
+            g.email = document.getElementById('guardian-edit-email').value.trim();  
+
+            // تحديث اسم ولي الأمر المعروض على ملفات أبنائه المرتبطين تلقائياً  
+            students.forEach(s => { if (s.guardianId === id) { s.guardian = g.name; s.phone = g.phone; } });  
+
+            toggleModal('guardian-edit-modal', false);  
+            showNotification(`تم تحديث بيانات ولي الأمر [${g.name}] بنجاح`, "success");  
+            refreshAllViews();  
+            saveToLocalStorage();  
+        }  
+
+        function deleteGuardian(id) {  
+            const g = guardians.find(gd => gd.id === id);  
+            if (!g) return;  
+
+            const linkedChildren = students.filter(s => s.guardianId === id);  
+            if (linkedChildren.length > 0) {  
+                showNotification(`لا يمكن حذف ولي الأمر [${g.name}] لارتباطه بـ ${linkedChildren.length} طالب مسجل. يجب حذف أو نقل ملفات أبنائه أولاً.`, "warn");  
+                return;  
+            }  
+
+            const confirmed = window.confirm(`سيتم حذف ولي الأمر [${g.name}] نهائياً من السجل. هل تريد المتابعة؟`);  
+            if (!confirmed) return;  
+
+            guardians = guardians.filter(gd => gd.id !== id);  
+            showNotification(`تم حذف ولي الأمر [${g.name}] بنجاح`, "success");  
+            refreshAllViews();  
+            saveToLocalStorage();  
+        }  
+
         function deleteStudent(id) {  
             const s = students.find(std => std.id === id);  
             if (!s) return;  
@@ -5951,6 +6345,8 @@ function doGet(e) {
 
             const name = document.getElementById('hr-fullname').value.trim();  
             const jobTitle = document.getElementById('hr-job-title').value.trim();  
+            const genderInput = document.querySelector('input[name="hr-gender"]:checked');  
+            const gender = genderInput ? genderInput.value : 'ذكر';  
             const branch = document.getElementById('hr-branch').value;  
             const phone = document.getElementById('hr-phone').value.trim();  
             const email = document.getElementById('hr-email').value.trim();  
@@ -5961,7 +6357,7 @@ function doGet(e) {
             const newId = employees.length > 0 ? Math.max(...employees.map(e => e.id)) + 1 : 1;  
 
             const newEmp = {  
-                id: newId, name, role: '', jobTitle, branch, email, username: '', password: '',  
+                id: newId, name, role: '', jobTitle, gender, branch, email, username: '', password: '',  
                 phone, idCard, joinDate, qualification, revenue: 0, expense: 0, assignments: [], status: 'نشط'  
             };  
 
@@ -5988,6 +6384,10 @@ function doGet(e) {
             document.getElementById('hr-edit-joindate').value = emp.joinDate || '';  
             document.getElementById('hr-edit-qualification').value = emp.qualification || '';  
 
+            const genderToCheck = emp.gender === 'أنثى' ? 'أنثى' : 'ذكر';  
+            const genderRadio = document.querySelector(`input[name="hr-edit-gender"][value="${genderToCheck}"]`);  
+            if (genderRadio) genderRadio.checked = true;  
+
             populateSelectOptions();  
             document.getElementById('hr-edit-branch').value = emp.branch;  
 
@@ -6009,6 +6409,8 @@ function doGet(e) {
             emp.idCard = document.getElementById('hr-edit-idcard').value.trim();  
             emp.joinDate = document.getElementById('hr-edit-joindate').value;  
             emp.qualification = document.getElementById('hr-edit-qualification').value;  
+            const genderInputEdit = document.querySelector('input[name="hr-edit-gender"]:checked');  
+            emp.gender = genderInputEdit ? genderInputEdit.value : (emp.gender || 'ذكر');  
 
             toggleModal('hr-employee-edit-modal', false);  
             showNotification(`تم تحديث بيانات الموظف [${emp.name}] بنجاح`, "success");  
@@ -6035,7 +6437,7 @@ function doGet(e) {
 
                 tbody.innerHTML += `  
                     <tr class="hover:bg-gray-50 border-b border-gray-100 transition">  
-                        <td class="p-3 font-semibold text-gray-950">${emp.name}</td>  
+                        <td class="p-3 font-semibold text-gray-950">${emp.name} <i class="fa-solid ${emp.gender === 'أنثى' ? 'fa-venus text-pink-400' : 'fa-mars text-blue-400'} text-[10px]" title="${emp.gender || 'ذكر'}"></i></td>  
                         <td class="p-3 text-xs text-gray-700">${emp.jobTitle || '—'}</td>  
                         <td class="p-3"><span class="bg-custom-accent-light text-custom-accent text-xs font-bold px-2 py-1 rounded">${emp.branch || '—'}</span></td>  
                         <td class="p-3 font-mono text-xs text-gray-500" dir="ltr">${emp.phone || '—'}</td>  
@@ -6779,6 +7181,25 @@ function doGet(e) {
                 if (modalId === 'student-modal') {  
                     calculateFinalFee();  
                     updateTeacherOptionsForStudent();  
+                    populateGuardianSelectForStudent();  
+                    clearSignaturePad();  
+                    setTimeout(initSignaturePad, 50);  
+                    const idPreview = document.getElementById('std-new-id-preview');  
+                    if (idPreview) {  
+                        const nextStudentId = students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 201;  
+                        idPreview.innerText = '#' + nextStudentId;  
+                    }  
+
+                    // إظهار خيار التخفيض فقط لمن يملك صلاحية "منح التخفيضات المالية للطلاب" تحديداً،   
+                    // فلا يظهر لولي الأمر أو لأي موظف غير مخوَّل، ويبقى الاعتماد على تحديد التخفيض حكراً   
+                    // على الشخص المخوّل فقط  
+                    const discountPanel = document.getElementById('std-discount-panel');  
+                    const canGrantDiscount = hasPermission(29);  
+                    if (discountPanel) discountPanel.classList.toggle('hidden', !canGrantDiscount);  
+                    if (!canGrantDiscount) {  
+                        const discountInput = document.getElementById('std-discount');  
+                        if (discountInput) { discountInput.value = 0; calculateFinalFee(); }  
+                    }  
                 }  
                 if (modalId === 'staff-modal') {  
                     // إعادة تصفير حالة تكليفات التدريس عند فتح نافذة إضافة موظف جديد من الصفر  
