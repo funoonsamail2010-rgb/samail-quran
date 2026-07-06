@@ -3370,10 +3370,35 @@ function doGet(e) {
             suppressAutoSave = true;  
 
             localStorage.clear();  
-            showNotification("تم تصفير المنظومة بالكامل وإعادتها لحالة فارغة، سيتم إعادة تحميل الصفحة...", "success");  
-            setTimeout(() => {  
-                window.location.reload();  
-            }, 1500);  
+
+            // ===== الخطوة الحاسمة: يجب تصفير قاعدة البيانات الحية (Firebase) أيضاً، وليس فقط المتصفح   
+            // — وإلا فإن الصفحة عند إعادة التحميل ستتصل بـ Firebase التي لا تزال تحمل البيانات القديمة   
+            // كاملة، فتُعيدها فوراً وكأن التصفير لم يحدث إطلاقاً =====  
+            const factoryDefaultState = {  
+                systemTerms: systemTerms, rolePermissions: rolePermissions,  
+                branches: [], programs: [], students: [], financialTransactions: [], assets: [],  
+                complaints: [], achievements: [], exams: [], guardians: [],  
+                employees: [{ id: 1, name: "الإدارة العامة للمنظومة", role: "role_0", username: "admin", password: "admin123", status: "نشط", email: "admin@samail.org" }],  
+                hierarchyOrder: hierarchyOrder, activeTheme: 'quranGreen', customThemeColors: null,  
+                customTextColor: null, headerTitleColor: null, loginScreenColor: null, systemLogo: null,  
+                modalHeaderTextColor: null, fontMainHeading: null, fontSubHeading: null,  
+                googleSheetWebhookUrl: null, autoSyncFromSheetEnabled: false, termsMetadata: termsMetadata,  
+                lastModified: Date.now()  
+            };  
+
+            if (firebaseDb) {  
+                firebaseDb.ref('samailData').set(factoryDefaultState).then(function () {  
+                    showNotification("تم تصفير المنظومة بالكامل (محلياً وفي قاعدة البيانات الحية معاً)، سيتم إعادة تحميل الصفحة...", "success");  
+                    setTimeout(() => { window.location.reload(); }, 1500);  
+                }).catch(function (err) {  
+                    console.error('Factory reset Firebase push failed:', err);  
+                    showNotification("تم التصفير محلياً، لكن تعذر تصفير قاعدة البيانات الحية بسبب مشكلة اتصال. أعد المحاولة بعد التأكد من اتصالك بالإنترنت، وإلا فقد تعود البيانات القديمة من الأجهزة الأخرى.", "warn");  
+                    setTimeout(() => { window.location.reload(); }, 2500);  
+                });  
+            } else {  
+                showNotification("تم تصفير المنظومة محلياً بالكامل، سيتم إعادة تحميل الصفحة...", "success");  
+                setTimeout(() => { window.location.reload(); }, 1500);  
+            }  
         }  
 
         // ===== تصفير الحسابات المالية فقط (حذف السندات وتصفير الأرصدة دون التأثير على الطلاب أو الموظفين) =====  
