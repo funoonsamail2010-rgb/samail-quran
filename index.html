@@ -3885,6 +3885,10 @@ function doGet(e) {
                 if (data.modalHeaderTextColor) modalHeaderTextColor = data.modalHeaderTextColor;  
                 if (data.fontMainHeading) fontMainHeading = data.fontMainHeading;  
                 if (data.fontSubHeading) fontSubHeading = data.fontSubHeading;  
+                if (data.googleSheetWebhookUrl) googleSheetWebhookUrl = data.googleSheetWebhookUrl;  
+                if (typeof data.autoSyncFromSheetEnabled === 'boolean') autoSyncFromSheetEnabled = data.autoSyncFromSheetEnabled;  
+                updateGoogleSheetStatusUI();  
+                if (autoSyncFromSheetEnabled && googleSheetWebhookUrl) { startAutoSyncInterval(); } else { stopAutoSyncInterval(); }  
 
                 // إعادة ربط المستخدم الحالي (إن كان مسجلاً دخوله) بأحدث نسخة من بياناته  
                 if (currentActiveUser) {  
@@ -3917,6 +3921,7 @@ function doGet(e) {
                 loginScreenColor: loginScreenColor || null, systemLogo: systemLogo || null,  
                 modalHeaderTextColor: modalHeaderTextColor || null,  
                 fontMainHeading: fontMainHeading || null, fontSubHeading: fontSubHeading || null,  
+                googleSheetWebhookUrl: googleSheetWebhookUrl || null, autoSyncFromSheetEnabled: autoSyncFromSheetEnabled || false,  
                 lastModified: lastLocalChangeTimestamp || Date.now()  
             };  
         }  
