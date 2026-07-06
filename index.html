@@ -867,7 +867,7 @@
                 <!-- لوحة الإحصائيات الشاملة الخاصة بالمشرف العام والمدير (رئيس المركز والإدارة العامة) -->  
                 <div id="admin-stats-panel" class="hidden mt-6 space-y-3">  
                     <h4 class="font-bold text-custom-primary text-sm flex items-center gap-1.5 pb-1 border-b border-gray-100">  
-                        <i class="fa-solid fa-chart-pie"></i> إحصائيات شاملة إضافية (خاصة بالإدارة العامة ورئيس المركز)  
+                        <i class="fa-solid fa-chart-pie"></i> إحصائيات شاملة إضافية  
                     </h4>  
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="admin-stats-grid">  
                         <div class="card-elevated bg-gradient-to-br from-indigo-50 to-indigo-100/40 p-5 rounded-xl border border-indigo-100 shadow-sm flex items-center justify-between cursor-pointer" onclick="showStatDetails('staff')" title="اضغط لعرض التفاصيل الكاملة القابلة للطباعة">  
@@ -877,14 +877,14 @@
                             </div>  
                             <div class="bg-indigo-100 p-3 rounded-lg text-indigo-600"><i class="fa-solid fa-user-tie text-2xl"></i></div>  
                         </div>  
-                        <div class="card-elevated bg-gradient-to-br from-teal-50 to-teal-100/40 p-5 rounded-xl border border-teal-100 shadow-sm flex items-center justify-between cursor-pointer" onclick="showStatDetails('branches')" title="اضغط لعرض التفاصيل الكاملة القابلة للطباعة">  
+                        <div id="stat-branches-count-card" class="card-elevated bg-gradient-to-br from-teal-50 to-teal-100/40 p-5 rounded-xl border border-teal-100 shadow-sm flex items-center justify-between cursor-pointer" onclick="showStatDetails('branches')" title="اضغط لعرض التفاصيل الكاملة القابلة للطباعة">  
                             <div>  
                                 <span class="text-xs text-teal-800 font-semibold block mb-1">إجمالي الحلقات / الفروع النشطة</span>  
                                 <span class="text-2xl font-bold text-teal-900" id="stat-branches-count">0 حلقة</span>  
                             </div>  
                             <div class="bg-teal-100 p-3 rounded-lg text-teal-600"><i class="fa-solid fa-mosque text-2xl"></i></div>  
                         </div>  
-                        <div class="card-elevated bg-gradient-to-br from-purple-50 to-purple-100/40 p-5 rounded-xl border border-purple-100 shadow-sm flex items-center justify-between cursor-pointer" onclick="showStatDetails('programs')" title="اضغط لعرض التفاصيل الكاملة القابلة للطباعة">  
+                        <div id="stat-programs-count-card" class="card-elevated bg-gradient-to-br from-purple-50 to-purple-100/40 p-5 rounded-xl border border-purple-100 shadow-sm flex items-center justify-between cursor-pointer" onclick="showStatDetails('programs')" title="اضغط لعرض التفاصيل الكاملة القابلة للطباعة">  
                             <div>  
                                 <span class="text-xs text-purple-800 font-semibold block mb-1">إجمالي البرامج القرآنية الفعالة</span>  
                                 <span class="text-2xl font-bold text-purple-900" id="stat-programs-count">0 برنامج</span>  
@@ -929,7 +929,7 @@
                     </div>  
 
                     <!-- لوحة الاستقلالية المالية لكل حلقة على حدة -->  
-                    <div class="bg-white border border-gray-100 rounded-xl p-4 shadow-sm mt-4">  
+                    <div id="branch-financial-independence-panel" class="bg-white border border-gray-100 rounded-xl p-4 shadow-sm mt-4">  
                         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3">  
                             <h4 class="font-bold text-custom-primary flex items-center gap-1.5 text-sm">  
                                 <i class="fa-solid fa-building-shield"></i> الاستقلالية المالية لكل حلقة / فرع  
@@ -5164,29 +5164,65 @@ function doGet(e) {
                 document.getElementById('stats-grid').className = "grid grid-cols-1 gap-4";  
             }  
 
-            // ===== تعبئة وإظهار لوحة الإحصائيات الشاملة الخاصة بالإدارة العامة ورئيس المركز (المشرف والمدير) =====  
+            // ===== تعبئة وإظهار لوحة الإحصائيات الشاملة: كاملة للإدارة العامة ورئيس المركز،   
+            // ===== وبنطاق حلقتها فقط (بدون بيانات مالية) لمديرة الحلقة =====  
             const adminStatsPanel = document.getElementById('admin-stats-panel');  
             if (adminStatsPanel) {  
                 const isAdminOrSupervisor = currentActiveUser && (currentActiveUser.role === 'role_0' || currentActiveUser.role === 'role_1');  
-                if (isAdminOrSupervisor) {  
+                const isBranchDirector = currentActiveUser && currentActiveUser.role === 'role_4';  
+
+                if (isAdminOrSupervisor || isBranchDirector) {  
                     adminStatsPanel.classList.remove('hidden');  
 
-                    const totalAssetsQty = assets.reduce((sum, a) => sum + (parseInt(a.qty) || 0), 0);  
-                    const activeComplaints = complaints.filter(c => c.status === 'نشط').length;  
-                    const approvedComplaints = complaints.filter(c => c.status === 'معتمد رسمياً').length;  
-
                     const setStat = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };  
+                    const branchesCard = document.getElementById('stat-branches-count-card');  
+                    const programsCard = document.getElementById('stat-programs-count-card');  
+                    const financeIndependencePanel = document.getElementById('branch-financial-independence-panel');  
 
-                    setStat('stat-staff-count', `${employees.length} موظف`);  
-                    setStat('stat-branches-count', `${branches.length} حلقة`);  
-                    setStat('stat-programs-count', `${programs.length} برنامج`);  
-                    setStat('stat-achievements-count', `${achievements.length} إنجاز`);  
-                    setStat('stat-exams-count', `${exams.length} اختبار`);  
-                    setStat('stat-assets-count', `${totalAssetsQty} عهدة`);  
-                    setStat('stat-complaints-active-count', `${activeComplaints} بلاغ`);  
-                    setStat('stat-complaints-approved-count', `${approvedComplaints} بلاغ`);  
+                    if (isAdminOrSupervisor) {  
+                        // العرض الكامل الأصلي: أرقام على مستوى المنظومة بأكملها  
+                        const totalAssetsQty = assets.reduce((sum, a) => sum + (parseInt(a.qty) || 0), 0);  
+                        const activeComplaints = complaints.filter(c => c.status === 'نشط').length;  
+                        const approvedComplaints = complaints.filter(c => c.status === 'معتمد رسمياً').length;  
 
-                    renderBranchFinancialIndependence();  
+                        if (branchesCard) branchesCard.classList.remove('hidden');  
+                        if (programsCard) programsCard.classList.remove('hidden');  
+                        if (financeIndependencePanel) financeIndependencePanel.classList.remove('hidden');  
+
+                        setStat('stat-staff-count', `${employees.length} موظف`);  
+                        setStat('stat-branches-count', `${branches.length} حلقة`);  
+                        setStat('stat-programs-count', `${programs.length} برنامج`);  
+                        setStat('stat-achievements-count', `${achievements.length} إنجاز`);  
+                        setStat('stat-exams-count', `${exams.length} اختبار`);  
+                        setStat('stat-assets-count', `${totalAssetsQty} عهدة`);  
+                        setStat('stat-complaints-active-count', `${activeComplaints} بلاغ`);  
+                        setStat('stat-complaints-approved-count', `${approvedComplaints} بلاغ`);  
+
+                        renderBranchFinancialIndependence();  
+                    } else {  
+                        // مديرة الحلقة: نفس الإحصائيات لكن بنطاق حلقتها هي فقط، وبدون أي رقم مالي  
+                        const myBranch = currentActiveUser.branch;  
+                        const branchStudentNames = students.filter(s => s.branch === myBranch).map(s => s.name);  
+
+                        const branchStaffCount = employees.filter(e => e.branch === myBranch).length;  
+                        const branchAchievementsCount = achievements.filter(a => a.branch === myBranch).length;  
+                        const branchExamsCount = exams.filter(e => branchStudentNames.includes(e.student)).length;  
+                        const branchAssetsQty = assets.filter(a => a.branch === myBranch).reduce((sum, a) => sum + (parseInt(a.qty) || 0), 0);  
+                        const branchActiveComplaints = complaints.filter(c => c.branch === myBranch && c.status === 'نشط').length;  
+                        const branchApprovedComplaints = complaints.filter(c => c.branch === myBranch && c.status === 'معتمد رسمياً').length;  
+
+                        // إخفاء البطاقتين اللتين لا معنى لهما على مستوى حلقة واحدة، وإخفاء الجدول المالي بالكامل  
+                        if (branchesCard) branchesCard.classList.add('hidden');  
+                        if (programsCard) programsCard.classList.add('hidden');  
+                        if (financeIndependencePanel) financeIndependencePanel.classList.add('hidden');  
+
+                        setStat('stat-staff-count', `${branchStaffCount} موظف`);  
+                        setStat('stat-achievements-count', `${branchAchievementsCount} إنجاز`);  
+                        setStat('stat-exams-count', `${branchExamsCount} اختبار`);  
+                        setStat('stat-assets-count', `${branchAssetsQty} عهدة`);  
+                        setStat('stat-complaints-active-count', `${branchActiveComplaints} بلاغ`);  
+                        setStat('stat-complaints-approved-count', `${branchApprovedComplaints} بلاغ`);  
+                    }  
                 } else {  
                     adminStatsPanel.classList.add('hidden');  
                 }  
