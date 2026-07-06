@@ -585,7 +585,10 @@
                     </div>  
                 </div>  
                 <button type="submit" class="w-full bg-custom-primary bg-custom-primary-hover text-white text-xs py-3 rounded-lg font-bold shadow-lg transition flex items-center justify-center gap-2">  
-                    <i class="fa-solid fa-shield-halved"></i> تسجيل الدخول والتحقق الآمن  
+                    <i class="fa-solid fa-shield-halved"></i> تسجيل الدخول والتحقق الآمن 
+<button type="button" onclick="restoreGeneralAdmin()" class="w-full bg-amber-100 text-amber-800 text-xs py-2 rounded-lg font-bold border border-amber-200">
+  استعادة صلاحية الإدارة العامة
+</button> 
                 </button>  
                 <div class="text-center">  
                     <button type="button" onclick="openForgotPasswordModal()" class="text-[11px] text-custom-primary hover:text-custom-accent font-bold underline underline-offset-2 transition">  
@@ -7659,5 +7662,69 @@ function doGet(e) {
             select.innerHTML = html;  
         }  
     </script>  
+// ===============================
+// حماية الإدارة العامة - رتل
+// ===============================
+
+const SUPER_ADMIN_ROLE = "الإدارة العامة";
+const EMERGENCY_ADMIN_CODE = "RATEL-ADMIN-2026";
+
+function isGeneralAdmin(user) {
+  if (!user) return false;
+
+  return (
+    user.role === SUPER_ADMIN_ROLE ||
+    user.role === "admin" ||
+    user.isSuperAdmin === true ||
+    user.permissions === "*" ||
+    (Array.isArray(user.permissions) && user.permissions.includes("*"))
+  );
+}
+
+function countGeneralAdmins() {
+  const usersList = Array.isArray(users) ? users : Object.values(users || {});
+  return usersList.filter(u => isGeneralAdmin(u)).length;
+}
+
+function protectLastAdmin(userId) {
+  const usersList = Array.isArray(users) ? users : Object.values(users || {});
+  const targetUser = usersList.find(u => String(u.id) === String(userId));
+
+  if (!targetUser) return true;
+
+  if (isGeneralAdmin(targetUser) && countGeneralAdmins() <= 1) {
+    alert("لا يمكن حذف أو سحب صلاحية آخر حساب إدارة عامة في النظام.");
+    return false;
+  }
+
+  return true;
+}
+
+function restoreGeneralAdmin() {
+  const code = prompt("أدخل رمز استعادة الإدارة العامة:");
+
+  if (code !== EMERGENCY_ADMIN_CODE) {
+    alert("رمز الاستعادة غير صحيح.");
+    return;
+  }
+
+  if (!currentUser) {
+    alert("لم يتم العثور على المستخدم الحالي.");
+    return;
+  }
+
+  currentUser.role = SUPER_ADMIN_ROLE;
+  currentUser.isSuperAdmin = true;
+  currentUser.permissions = "*";
+
+  try {
+    localStorage.setItem("currentUser", JSON.stringify(currentUser));
+  } catch (e) {}
+
+  alert("تم استرجاع صلاحية الإدارة العامة بنجاح.");
+
+  if (typeof renderUI === "function") renderUI();
+  if (typeof updateUserProfileHeader === "function") updateUserProfileHeader();
+}
 </body>  
 </html>
