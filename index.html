@@ -23,21 +23,20 @@
     <!-- مكتبة الأيقونات FontAwesome -->  
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">  
       
-    <script defer>  
-        // ملاحظة: defer هنا ضرورية لضمان تنفيذ هذا الكود بعد تحميل مكتبة Tailwind أعلاه مباشرة   
-        // (لأن كلا السكربتين أصبحا مؤجلين defer، فسيُنفذان بالترتيب نفسه بعد اكتمال تحليل الصفحة)  
-        if (typeof tailwind !== 'undefined') {  
-            tailwind.config = {  
-                theme: {  
-                    extend: {  
-                        fontFamily: {  
-                            cairo: ['Cairo', 'sans-serif'],  
-                            amiri: ['Amiri', 'serif']  
-                        }  
-                    }  
-                }  
-            }  
-        }  
+    <script>
+        // تهيئة Tailwind قبل تنفيذ ملف CDN المؤجل؛ السكربتات الداخلية لا تعمل معها defer،
+        // لذلك نضع الإعدادات على window.tailwind مباشرة حتى يقرأها Tailwind عند تحميله.
+        window.tailwind = window.tailwind || {};
+        window.tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        cairo: ['Cairo', 'sans-serif'],
+                        amiri: ['Amiri', 'serif']
+                    }
+                }
+            }
+        };
     </script>  
       
     <style>  
@@ -162,6 +161,10 @@
         table { border-collapse: collapse; }
         img, svg { display: block; max-width: 100%; }
         a { color: inherit; text-decoration: inherit; }
+        .backdrop-blur-sm, .backdrop-blur-md { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+        .duration-300 { transition-duration: .3s; }
+        .duration-500 { transition-duration: .5s; }
+        .hover\:scale-105:hover { transform: scale(1.05); }
         input:focus, select:focus, textarea:focus, button:focus-visible {
             outline: 2px solid var(--primary-color, #0f5132); outline-offset: 1px;
         }
@@ -6543,6 +6546,18 @@ function doGet(e) {
             saveToLocalStorage();  
         }  
 
+        // توحيد أسماء الطلاب قبل المقارنة حتى لا يمر التكرار بسبب اختلاف المسافات أو التشكيل أو بعض أشكال الألف/الياء.
+        function normalizeArabicNameForDuplicateCheck(value) {
+            return String(value || '')
+                .trim()
+                .replace(/[\u064B-\u065F\u0670]/g, '')
+                .replace(/[إأآا]/g, 'ا')
+                .replace(/ى/g, 'ي')
+                .replace(/ة/g, 'ه')
+                .replace(/\s+/g, ' ')
+                .toLowerCase();
+        }
+
         function submitStudentForm(event) {  
             event.preventDefault();  
 
@@ -6554,6 +6569,18 @@ function doGet(e) {
             const program = document.getElementById('std-program').value;  
             const discount = parseFloat(document.getElementById('std-discount').value) || 0;  
             const teacher = document.getElementById('std-teacher').value;  
+
+            if (!name) {
+                showNotification("يرجى إدخال اسم الطالب قبل الحفظ.", "warn");
+                return;
+            }
+
+            const normalizedStudentName = normalizeArabicNameForDuplicateCheck(name);
+            const duplicateStudent = students.find(s => normalizeArabicNameForDuplicateCheck(s.name) === normalizedStudentName);
+            if (duplicateStudent) {
+                showNotification(`اسم الطالب [${name}] مسجل مسبقاً برقم تعريفي #${duplicateStudent.id}. لا يمكن تكرار أسماء الطلبة.`, "warn");
+                return;
+            }
 
             // ===== تحديد ولي الأمر: إما اختيار موجود بالسجل، أو إنشاء سجل جديد له =====  
             const selectedGuardianId = document.getElementById('std-guardian-select').value;  
@@ -7079,6 +7106,16 @@ function doGet(e) {
                 showNotification("يرجى إدخال رقم السند يدوياً قبل الاعتماد.", "warn");  
                 return;  
             }  
+
+            if (isNaN(amount) || amount <= 0) {
+                showNotification("يرجى إدخال مبلغ صحيح أكبر من صفر قبل اعتماد السند.", "warn");
+                return;
+            }
+
+            if (!date) {
+                showNotification("يرجى اختيار تاريخ السند قبل الاعتماد.", "warn");
+                return;
+            }
 
             // منع تكرار رقم السند بشكل قاطع (غير حساس لحالة الأحرف والمسافات الزائدة)  
             const isDuplicateSerial = financialTransactions.some(t => t.id.trim().toLowerCase() === id.toLowerCase());  
