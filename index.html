@@ -591,13 +591,6 @@
                     </button>  
                 </div>  
             </form>  
-              
-            <div class="text-[10px] text-gray-400 border-t pt-4">  
-                <span class="block font-bold text-gray-500 mb-1">حسابات الدخول السريع (اسم المستخدم / كلمة السر) — اضغط على أي منها لتسجيل الدخول مباشرة:</span>  
-                <div class="flex flex-wrap justify-center gap-1 mt-1 font-mono" id="quick-login-hints">  
-                    <!-- يتم بناؤها برمجياً لتعكس الرموز المعدلة فوراً -->  
-                </div>  
-            </div>  
             </div>  
             <div class="heritage-divider"></div>  
         </div>  
@@ -4149,19 +4142,11 @@ function doGet(e) {
             safeInitStep(renderLoginHints, 'renderLoginHints');  
         };  
   
+        // ملاحظة: أُزيلت ميزة "حسابات الدخول السريع" نهائياً لأسباب أمنية (كانت تعرض كلمات السر   
+        // الفعلية على شاشة الدخول العامة). أبقيت هذه الدالة كـ"لا تفعل شيئاً" فقط حتى لا نحتاج   
+        // لتعديل كل الأماكن التي تستدعيها في أنحاء النظام.  
         function renderLoginHints() {  
-            const container = document.getElementById('quick-login-hints');  
-            if (!container) return;  
-            container.innerHTML = '';  
-            employees.forEach(emp => {  
-                if (emp.status !== 'معطل' && emp.username) {  
-                    container.innerHTML += `  
-                        <span class="bg-gray-100 px-1.5 py-0.5 rounded text-gray-600 cursor-pointer hover:bg-gray-200"   
-                              onclick="document.getElementById('login-username').value='${emp.username}'; document.getElementById('login-password').value='${emp.password}'; handleSystemLogin();"   
-                              title="${emp.jobTitle || systemTerms[emp.role]} — اضغط لتسجيل الدخول مباشرة بهذا الحساب">${emp.username} / ${emp.password}</span>  
-                    `;  
-                }  
-            });  
+            return;  
         }  
   
         function handleSystemLogin() {  
