@@ -3333,10 +3333,12 @@ function doGet(e) {
                 if (storedTimestamp) lastLocalChangeTimestamp = parseInt(storedTimestamp) || 0;  
             } catch (e) { /* تجاهل */ }  
 
-            try {  
-                const loggedInFlag = localStorage.getItem('samail_isLoggedIn');  
-                if (loggedInFlag) isLoggedIn = loggedInFlag === 'true';  
-            } catch (e) { /* تجاهل */ }  
+            // تم إلغاء تذكّر تسجيل الدخول بين الجلسات بناءً على طلب صاحب النظام: كلمة السر   
+            // ستُطلب دائماً عند كل فتح جديد للصفحة، ولن يتم الدخول التلقائي بعد الآن  
+            // try {  
+            //     const loggedInFlag = localStorage.getItem('samail_isLoggedIn');  
+            //     if (loggedInFlag) isLoggedIn = loggedInFlag === 'true';  
+            // } catch (e) { /* تجاهل */ }  
 
             try {  
                 const activeId = localStorage.getItem('samail_activeUserId');  
