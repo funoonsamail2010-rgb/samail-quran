@@ -791,6 +791,12 @@
                 </div>  
             </div>  
             <div class="flex items-center gap-4">  
+                <div class="text-right hidden md:block">  
+                    <span class="text-[11px] text-gray-400 block">حالة حفظ البيانات:</span>  
+                    <span class="text-[11px] font-bold flex items-center gap-1" id="header-last-save-indicator">  
+                        <i class="fa-solid fa-circle-notch fa-spin text-gray-300"></i> <span class="text-gray-400">لم يُحفظ شيء بعد</span>  
+                    </span>  
+                </div>  
                 <div class="text-right">  
                     <span class="text-[11px] text-gray-400 block" data-term-id="branch_scope_label">نطاق الاطلاع والعمل:</span>  
                     <span class="bg-custom-primary-light text-custom-primary text-xs font-bold px-3 py-1 rounded-full border border-custom-primary/10" id="profile-user-branch">تحميل الفرع</span>  
@@ -3147,7 +3153,7 @@ function doGet(e) {
             });  
 
             const customMeta = {};  
-            for (const k in termsMetadata) { if (termsMetadata[k] && termsMetadata[k].custom) customMeta[k] = termsMetadata[k]; }  
+            for (const k in termsMetadata) { if (termsMetadata[k]) customMeta[k] = termsMetadata[k]; }  
             if (!safeSetItem('samail_customTermsMeta', JSON.stringify(customMeta))) { allOk = false; failedKeys.push('samail_customTermsMeta'); }  
 
             // الشعار يُحفظ أخيراً ومستقلاً تماماً؛ فشل حفظه (لضخامة حجمه مثلاً) لن يؤثر على أي بيانات أخرى أعلاه  
@@ -3887,6 +3893,7 @@ function doGet(e) {
                 if (data.fontSubHeading) fontSubHeading = data.fontSubHeading;  
                 if (data.googleSheetWebhookUrl) googleSheetWebhookUrl = data.googleSheetWebhookUrl;  
                 if (typeof data.autoSyncFromSheetEnabled === 'boolean') autoSyncFromSheetEnabled = data.autoSyncFromSheetEnabled;  
+                if (data.termsMetadata) { try { Object.assign(termsMetadata, data.termsMetadata); } catch (e) { /* تجاهل */ } }  
                 updateGoogleSheetStatusUI();  
                 if (autoSyncFromSheetEnabled && googleSheetWebhookUrl) { startAutoSyncInterval(); } else { stopAutoSyncInterval(); }  
 
@@ -3922,20 +3929,42 @@ function doGet(e) {
                 modalHeaderTextColor: modalHeaderTextColor || null,  
                 fontMainHeading: fontMainHeading || null, fontSubHeading: fontSubHeading || null,  
                 googleSheetWebhookUrl: googleSheetWebhookUrl || null, autoSyncFromSheetEnabled: autoSyncFromSheetEnabled || false,  
+                termsMetadata: termsMetadata,  
                 lastModified: lastLocalChangeTimestamp || Date.now()  
             };  
         }  
 
         function pushFullStateToFirebase() {  
             if (!firebaseDb || isApplyingRemoteUpdate) return;  
+            updateHeaderSaveIndicator('pending');  
             try {  
-                firebaseDb.ref('samailData').set(buildFullStateObject()).catch(function (err) {  
+                firebaseDb.ref('samailData').set(buildFullStateObject()).then(function () {  
+                    updateHeaderSaveIndicator('success');  
+                }).catch(function (err) {  
                     console.error('Firebase push failed:', err);  
+                    updateHeaderSaveIndicator('error');  
                     showNotification("تنبيه: تعذر حفظ آخر تعديل بقاعدة البيانات الحية (قد يكون بسبب انقطاع الإنترنت). تأكد من اتصالك وأعد المحاولة.", "warn");  
                 });  
             } catch (e) {  
                 console.error('Firebase push failed:', e);  
+                updateHeaderSaveIndicator('error');  
                 showNotification("تنبيه: تعذر حفظ آخر تعديل بقاعدة البيانات الحية.", "warn");  
+            }  
+        }  
+
+        function updateHeaderSaveIndicator(state) {  
+            const el = document.getElementById('header-last-save-indicator');  
+            if (!el) return;  
+
+            const now = new Date();  
+            const timeStr = now.toLocaleTimeString('ar-OM', { hour: '2-digit', minute: '2-digit', second: '2-digit' });  
+
+            if (state === 'pending') {  
+                el.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin text-amber-500"></i> <span class="text-amber-600">جارِ الحفظ الآن...</span>';  
+            } else if (state === 'success') {  
+                el.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600"></i> <span class="text-emerald-700">تم الحفظ بنجاح — ${timeStr}</span>`;  
+            } else if (state === 'error') {  
+                el.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-600"></i> <span class="text-rose-700">فشل آخر حفظ! أعد المحاولة</span>`;  
             }  
         }  
 
@@ -4520,13 +4549,13 @@ function doGet(e) {
                   
                 grid.innerHTML += `  
                     <div class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm space-y-1.5 text-right">  
-                        <div class="flex items-center justify-between">  
-                            <label class="block text-xs font-bold text-custom-primary">${meta.label}</label>  
-                            ${meta.custom ? `<button type="button" onclick="deleteCustomTerm('${key}')" class="text-rose-500 hover:text-rose-700" title="حذف هذا المصطلح المخصص"><i class="fa-solid fa-trash text-[11px]"></i></button>` : ''}  
+                        <div class="flex items-center gap-1.5">  
+                            <input type="text" id="term-label-${key}" value="${meta.label}" title="عنوان هذا الحقل — قابل للتعديل بحرية" onkeydown="if(event.key==='Enter'){event.preventDefault(); saveSingleTerm('${key}');}" class="w-full text-xs font-bold text-custom-primary border border-custom-primary/20 bg-custom-primary-light rounded p-1.5 focus:ring-1 focus:ring-custom-primary focus:outline-none">  
+                            ${meta.custom ? `<button type="button" onclick="deleteCustomTerm('${key}')" class="text-rose-500 hover:text-rose-700 flex-shrink-0" title="حذف هذا المصطلح المخصص"><i class="fa-solid fa-trash text-[11px]"></i></button>` : ''}  
                         </div>  
                         <div class="flex items-center gap-1.5">  
                             <input type="text" id="term-input-${key}" value="${systemTerms[key]}" onkeydown="if(event.key==='Enter'){event.preventDefault(); saveSingleTerm('${key}');}" class="w-full text-xs border border-gray-300 rounded p-2 focus:ring-1 focus:ring-custom-primary focus:outline-none">  
-                            <button type="button" onclick="saveSingleTerm('${key}')" title="حفظ هذا المسمى فوراً دون التأثير على البقية" class="bg-custom-primary bg-custom-primary-hover text-white text-[11px] px-2.5 py-2 rounded-lg font-bold transition flex-shrink-0">  
+                            <button type="button" onclick="saveSingleTerm('${key}')" title="حفظ العنوان والقيمة معاً فوراً دون التأثير على البقية" class="bg-custom-primary bg-custom-primary-hover text-white text-[11px] px-2.5 py-2 rounded-lg font-bold transition flex-shrink-0">  
                                 <i class="fa-solid fa-check"></i>  
                             </button>  
                         </div>  
@@ -4576,6 +4605,7 @@ function doGet(e) {
         // حفظ مسمى واحد فقط فوراً دون التأثير على بقية المسميات، للتعديل السريع حسب حاجة المركز  
         function saveSingleTerm(key) {  
             const input = document.getElementById(`term-input-${key}`);  
+            const labelInput = document.getElementById(`term-label-${key}`);  
             if (!input) return;  
 
             const newValue = input.value.trim();  
@@ -4585,9 +4615,17 @@ function doGet(e) {
             }  
 
             systemTerms[key] = newValue;  
+
+            if (labelInput) {  
+                const newLabel = labelInput.value.trim();  
+                if (newLabel && termsMetadata[key]) {  
+                    termsMetadata[key].label = newLabel;  
+                }  
+            }  
+
             applySystemTerms();  
             const label = (termsMetadata[key] && termsMetadata[key].label) || key;  
-            showNotification(`تم حفظ مسمى [${label}] بنجاح`, "success");  
+            showNotification(`تم حفظ [${label}] بنجاح`, "success");  
             saveToLocalStorage();  
         }  
 
