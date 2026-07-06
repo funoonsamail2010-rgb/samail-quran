@@ -4436,7 +4436,14 @@ function doGet(e) {
                 <tr class="bg-custom-primary text-white font-bold divide-x divide-white/10 text-center">  
                     <th class="p-3 text-right sticky right-0 bg-custom-primary z-10 w-12">م</th>  
                     <th class="p-3 text-right sticky right-12 bg-custom-primary z-10 w-64 border-l border-white/20" data-term-id="tbl_permission_header">الصلاحية</th>  
-                    ${roles.map(roleKey => `<th class="p-2">${systemTerms[roleKey]}${LOCKED_ROLES.includes(roleKey) ? ' <i class="fa-solid fa-lock text-custom-accent" title="دور مقفل، صلاحياته كاملة وغير قابلة للتعديل"></i>' : ''}</th>`).join('')}  
+                    ${roles.map(roleKey => `  
+                        <th class="p-2">  
+                            <div class="flex flex-col items-center gap-1">  
+                                <span>${systemTerms[roleKey]}${LOCKED_ROLES.includes(roleKey) ? ' <i class="fa-solid fa-lock text-custom-accent" title="دور مقفل، صلاحياته كاملة وغير قابلة للتعديل"></i>' : ''}</span>  
+                                ${!LOCKED_ROLES.includes(roleKey) ? `<button onclick="checkAllPermissionsForRole('${roleKey}')" class="text-[9px] bg-white/15 hover:bg-white/25 px-1.5 py-0.5 rounded font-normal transition" title="تحديد كل الصلاحيات لهذا الدور دفعة واحدة">تحديد الكل</button>` : ''}  
+                            </div>  
+                        </th>  
+                    `).join('')}  
                 </tr>  
             `;  
   
@@ -4466,6 +4473,19 @@ function doGet(e) {
             });  
         }  
   
+        // تحديد كل الصلاحيات لدور معيّن دفعة واحدة (مفيد للاستعادة السريعة بعد أي تعديل غير مقصود)  
+        function checkAllPermissionsForRole(roleKey) {  
+            if (LOCKED_ROLES.includes(roleKey)) return;  
+
+            const confirmed = window.confirm(`سيتم تفعيل كل الصلاحيات الـ${permissions.length} لدور [${systemTerms[roleKey]}] دفعة واحدة. هل تريد المتابعة؟`);  
+            if (!confirmed) return;  
+
+            permissions.forEach(perm => { rolePermissions[roleKey][perm.id] = true; });  
+            buildMatrixTable();  
+            showNotification(`تم تفعيل كل الصلاحيات لدور [${systemTerms[roleKey]}] بنجاح`, "success");  
+            saveToLocalStorage();  
+        }  
+
         function toggleMatrixPermission(roleKey, permId, checked) {  
             if (LOCKED_ROLES.includes(roleKey)) {  
                 showNotification(`دور [${systemTerms[roleKey]}] مقفل بشكل دائم ويملك كافة الصلاحيات، ولا يمكن تعديله.`, 'warn');  
