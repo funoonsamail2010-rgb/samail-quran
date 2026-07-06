@@ -3147,7 +3147,7 @@ function doGet(e) {
             });  
 
             const customMeta = {};  
-            for (const k in termsMetadata) { if (termsMetadata[k]) customMeta[k] = termsMetadata[k]; }  
+            for (const k in termsMetadata) { if (termsMetadata[k] && termsMetadata[k].custom) customMeta[k] = termsMetadata[k]; }  
             if (!safeSetItem('samail_customTermsMeta', JSON.stringify(customMeta))) { allOk = false; failedKeys.push('samail_customTermsMeta'); }  
 
             // الشعار يُحفظ أخيراً ومستقلاً تماماً؛ فشل حفظه (لضخامة حجمه مثلاً) لن يؤثر على أي بيانات أخرى أعلاه  
@@ -3887,7 +3887,6 @@ function doGet(e) {
                 if (data.fontSubHeading) fontSubHeading = data.fontSubHeading;  
                 if (data.googleSheetWebhookUrl) googleSheetWebhookUrl = data.googleSheetWebhookUrl;  
                 if (typeof data.autoSyncFromSheetEnabled === 'boolean') autoSyncFromSheetEnabled = data.autoSyncFromSheetEnabled;  
-                if (data.termsMetadata) { try { Object.assign(termsMetadata, data.termsMetadata); } catch (e) { /* تجاهل */ } }  
                 updateGoogleSheetStatusUI();  
                 if (autoSyncFromSheetEnabled && googleSheetWebhookUrl) { startAutoSyncInterval(); } else { stopAutoSyncInterval(); }  
 
@@ -3923,7 +3922,6 @@ function doGet(e) {
                 modalHeaderTextColor: modalHeaderTextColor || null,  
                 fontMainHeading: fontMainHeading || null, fontSubHeading: fontSubHeading || null,  
                 googleSheetWebhookUrl: googleSheetWebhookUrl || null, autoSyncFromSheetEnabled: autoSyncFromSheetEnabled || false,  
-                termsMetadata: termsMetadata,  
                 lastModified: lastLocalChangeTimestamp || Date.now()  
             };  
         }  
@@ -4522,13 +4520,13 @@ function doGet(e) {
                   
                 grid.innerHTML += `  
                     <div class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm space-y-1.5 text-right">  
-                        <div class="flex items-center gap-1.5">  
-                            <input type="text" id="term-label-${key}" value="${meta.label}" title="عنوان هذا الحقل — قابل للتعديل بحرية" onkeydown="if(event.key==='Enter'){event.preventDefault(); saveSingleTerm('${key}');}" class="w-full text-xs font-bold text-custom-primary border border-custom-primary/20 bg-custom-primary-light rounded p-1.5 focus:ring-1 focus:ring-custom-primary focus:outline-none">  
-                            ${meta.custom ? `<button type="button" onclick="deleteCustomTerm('${key}')" class="text-rose-500 hover:text-rose-700 flex-shrink-0" title="حذف هذا المصطلح المخصص"><i class="fa-solid fa-trash text-[11px]"></i></button>` : ''}  
+                        <div class="flex items-center justify-between">  
+                            <label class="block text-xs font-bold text-custom-primary">${meta.label}</label>  
+                            ${meta.custom ? `<button type="button" onclick="deleteCustomTerm('${key}')" class="text-rose-500 hover:text-rose-700" title="حذف هذا المصطلح المخصص"><i class="fa-solid fa-trash text-[11px]"></i></button>` : ''}  
                         </div>  
                         <div class="flex items-center gap-1.5">  
                             <input type="text" id="term-input-${key}" value="${systemTerms[key]}" onkeydown="if(event.key==='Enter'){event.preventDefault(); saveSingleTerm('${key}');}" class="w-full text-xs border border-gray-300 rounded p-2 focus:ring-1 focus:ring-custom-primary focus:outline-none">  
-                            <button type="button" onclick="saveSingleTerm('${key}')" title="حفظ العنوان والقيمة معاً فوراً دون التأثير على البقية" class="bg-custom-primary bg-custom-primary-hover text-white text-[11px] px-2.5 py-2 rounded-lg font-bold transition flex-shrink-0">  
+                            <button type="button" onclick="saveSingleTerm('${key}')" title="حفظ هذا المسمى فوراً دون التأثير على البقية" class="bg-custom-primary bg-custom-primary-hover text-white text-[11px] px-2.5 py-2 rounded-lg font-bold transition flex-shrink-0">  
                                 <i class="fa-solid fa-check"></i>  
                             </button>  
                         </div>  
@@ -4578,7 +4576,6 @@ function doGet(e) {
         // حفظ مسمى واحد فقط فوراً دون التأثير على بقية المسميات، للتعديل السريع حسب حاجة المركز  
         function saveSingleTerm(key) {  
             const input = document.getElementById(`term-input-${key}`);  
-            const labelInput = document.getElementById(`term-label-${key}`);  
             if (!input) return;  
 
             const newValue = input.value.trim();  
@@ -4588,17 +4585,9 @@ function doGet(e) {
             }  
 
             systemTerms[key] = newValue;  
-
-            if (labelInput) {  
-                const newLabel = labelInput.value.trim();  
-                if (newLabel && termsMetadata[key]) {  
-                    termsMetadata[key].label = newLabel;  
-                }  
-            }  
-
             applySystemTerms();  
             const label = (termsMetadata[key] && termsMetadata[key].label) || key;  
-            showNotification(`تم حفظ [${label}] بنجاح`, "success");  
+            showNotification(`تم حفظ مسمى [${label}] بنجاح`, "success");  
             saveToLocalStorage();  
         }  
 
