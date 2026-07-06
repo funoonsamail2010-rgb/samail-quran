@@ -3027,6 +3027,9 @@ function doGet(e) {
         // إن حدث تعديل محلي فعلي قبل وصول أول لقطة من Firebase، يجب ألا تُمحى هذه التعديلات لاحقاً   
         // عند وصول تلك اللقطة — بل يجب أن تبقى الأولوية لأحدث تعديل حقيقي قام به المستخدم  
         let hasLocalChangesBeforeFirstSnapshot = false;  
+        // زمن آخر تعديل محلي حقيقي (يُحفظ في المتصفح أيضاً)، يُستخدم لاكتشاف حالة وصول بيانات   
+        // قديمة من Firebase بعد إعادة فتح الصفحة (مثلاً إن أُغلقت الصفحة بسرعة قبل اكتمال الدفع)  
+        let lastLocalChangeTimestamp = 0;  
         let autoSyncFromSheetEnabled = false;  
   
         // الأنماط البصرية الجمالية المتكاملة للمنصة  
@@ -3096,6 +3099,12 @@ function doGet(e) {
 
         function saveToLocalStorage(pushToFirebase) {  
             if (pushToFirebase === undefined) pushToFirebase = true;  
+            if (pushToFirebase) {  
+                // تسجيل زمن هذا التعديل الحقيقي محلياً، ليُستخدم لاحقاً لاكتشاف أي بيانات قديمة   
+                // تصل من Firebase بعد إعادة فتح الصفحة  
+                lastLocalChangeTimestamp = Date.now();  
+                try { localStorage.setItem('samail_lastLocalChangeTimestamp', String(lastLocalChangeTimestamp)); } catch (e) { /* تجاهل */ }  
+            }  
             // ملاحظة هامة: تُحفظ البيانات الحرجة (الطلاب، الحلقات، السندات المالية، الموظفين،   
             // الصلاحيات، المراسلات...) أولاً وبشكل مستقل تماماً عن حفظ الشعار (وهو أكبر عنصر بيانات   
             // وأكثرها عرضة لتجاوز مساحة التخزين)، حتى لا يؤدي فشل حفظ الشعار لفقدان أي تعديل آخر،   
@@ -3284,7 +3293,7 @@ function doGet(e) {
 
             try {  
                 const theme = localStorage.getItem('samail_activeTheme');  
-                if (theme && colorThemes[theme]) activeTheme = theme;  
+                if (theme && (colorThemes[theme] || theme === 'custom')) activeTheme = theme;  
             } catch (e) { /* تجاهل */ }  
 
             try {  
@@ -3317,6 +3326,11 @@ function doGet(e) {
                 if (storedFontMain) fontMainHeading = storedFontMain;  
                 const storedFontSub = localStorage.getItem('samail_fontSubHeading');  
                 if (storedFontSub) fontSubHeading = storedFontSub;  
+            } catch (e) { /* تجاهل */ }  
+
+            try {  
+                const storedTimestamp = localStorage.getItem('samail_lastLocalChangeTimestamp');  
+                if (storedTimestamp) lastLocalChangeTimestamp = parseInt(storedTimestamp) || 0;  
             } catch (e) { /* تجاهل */ }  
 
             try {  
@@ -3835,6 +3849,16 @@ function doGet(e) {
         }  
 
         function applyRemoteState(data) {  
+            // اكتشاف فجوة تزامن حقيقية: إن كانت البيانات الواردة من Firebase أقدم من آخر تعديل   
+            // محلي نعرفه (محفوظ من جلسة سابقة)، فهذا يعني أن دفعنا السابق لم يكتمل قبل إغلاق   
+            // الصفحة. في هذه الحالة، لا نستبدل تعديلنا الأحدث ببيانات أقدم، بل نعيد دفع نسختنا   
+            // (المحمَّلة أصلاً من التخزين المحلي الصحيح) لتصحيح القاعدة الحية  
+            if (data.lastModified && lastLocalChangeTimestamp && data.lastModified < lastLocalChangeTimestamp) {  
+                pushFullStateToFirebase();  
+                return;  
+            }  
+            if (data.lastModified) lastLocalChangeTimestamp = data.lastModified;  
+
             isApplyingRemoteUpdate = true;  
             try {  
                 if (data.systemTerms) systemTerms = Object.assign({}, systemTerms, data.systemTerms);  
@@ -3890,7 +3914,8 @@ function doGet(e) {
                 customTextColor: customTextColor || null, headerTitleColor: headerTitleColor || null,  
                 loginScreenColor: loginScreenColor || null, systemLogo: systemLogo || null,  
                 modalHeaderTextColor: modalHeaderTextColor || null,  
-                fontMainHeading: fontMainHeading || null, fontSubHeading: fontSubHeading || null  
+                fontMainHeading: fontMainHeading || null, fontSubHeading: fontSubHeading || null,  
+                lastModified: lastLocalChangeTimestamp || Date.now()  
             };  
         }  
 
