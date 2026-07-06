@@ -6190,6 +6190,10 @@ function doGet(e) {
             // في حال كان هذا الموظف هو المستخدم النشط حالياً، نقوم بتحديث واجهته فوراً  
             if (currentActiveUser.id === empId) {  
                 switchUser(empId);  
+                renderRoleSwitcher();  
+                refreshAllViews();  
+                renderLoginHints();  
+                saveToLocalStorage();  
             } else {  
                 renderRoleSwitcher();  
                 refreshAllViews();  
@@ -6754,6 +6758,9 @@ function doGet(e) {
 
             if (currentActiveUser.id === empId) {  
                 switchUser(empId);  
+                refreshAllViews();  
+                renderLoginHints();  
+                saveToLocalStorage();  
             } else {  
                 refreshAllViews();  
                 renderLoginHints();  
