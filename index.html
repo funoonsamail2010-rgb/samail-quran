@@ -3,6 +3,10 @@
 <head>  
     <meta charset="UTF-8">  
     <meta name="viewport" content="width=device-width, initial-scale=1.0">  
+    <!-- تقليل احتمالية عرض المتصفح لنسخة قديمة مخزَّنة مؤقتاً بعد كل تحديث للملف -->  
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">  
+    <meta http-equiv="Pragma" content="no-cache">  
+    <meta http-equiv="Expires" content="0">  
     <title>منظومة مركز سمائل القرآني - نظام الصلاحيات المتكامل</title>  
       
     <!-- خطوط القاهرة والأميري الراقية والملائمة للبيئات الإسلامية والتعليمية -->  
@@ -1485,15 +1489,9 @@
                             </button>  
                         </div>  
                         <form onsubmit="submitComplaint(event)" class="space-y-3">  
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">  
-                                <div>  
-                                    <label class="block text-xs font-bold text-gray-600 mb-1" data-term-id="letter_subject_label">الموضوع</label>  
-                                    <input type="text" id="comp-subject" required placeholder="مثال: طلب عاجل لصيانة تكييف" class="w-full text-xs border border-gray-300 rounded p-2">  
-                                </div>  
-                                <div>  
-                                    <label class="block text-xs font-bold text-gray-600 mb-1" data-term-id="letter_branch_label">الحلقة المستهدفة بالبلاغ</label>  
-                                    <select id="comp-branch" required class="w-full text-xs border border-gray-300 rounded p-2 bg-white"></select>  
-                                </div>  
+                            <div>  
+                                <label class="block text-xs font-bold text-gray-600 mb-1" data-term-id="letter_subject_label">الموضوع</label>  
+                                <input type="text" id="comp-subject" required placeholder="مثال: طلب عاجل لصيانة تكييف" class="w-full text-xs border border-gray-300 rounded p-2">  
                             </div>  
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">  
                                 <div>  
@@ -1501,8 +1499,10 @@
                                     <select id="comp-sender-name" class="w-full text-xs border border-gray-300 rounded p-2 bg-white"></select>  
                                 </div>  
                                 <div>  
-                                    <label class="block text-xs font-bold text-gray-600 mb-1">اسم المستقبل (المنصب)</label>  
-                                    <select id="comp-receiver-name" class="w-full text-xs border border-gray-300 rounded p-2 bg-white"></select>  
+                                    <label class="block text-xs font-bold text-gray-600 mb-1">المستقبلون (يمكن اختيار أكثر من شخص)</label>  
+                                    <div id="comp-receivers-checklist" class="border border-gray-300 rounded p-2 bg-white max-h-32 overflow-y-auto space-y-1">  
+                                        <!-- تُبنى ديناميكياً بمربعات اختيار متعددة -->  
+                                    </div>  
                                 </div>  
                             </div>  
                             <div>  
@@ -2924,7 +2924,7 @@ function doGet(e) {
   
         // 3. role_2 (مدير النظام): دور مالك لكافة الصلاحيات، ومقفل بشكل دائم لا يمكن تعديله  
         permissions.forEach(perm => rolePermissions["role_2"][perm.id] = true);  
-        const LOCKED_ROLES = ["role_0", "role_2"];  
+        const LOCKED_ROLES = ["role_2"];  
   
         // 4. role_3 (المشرف التربوي)  
         rolePermissions["role_3"][1] = true;  
@@ -3499,7 +3499,7 @@ function doGet(e) {
             achievements: [['id','id'], ['student','student'], ['branch','branch'], ['program','program'], ['details','details'], ['date','date']],  
             exams:        [['id','id'], ['student','student'], ['exam','exam'], ['score','score'], ['date','date']],  
             assets:       [['id','id'], ['name','name'], ['qty','qty'], ['branch','branch']],  
-            complaints:   [['id','الرقم'], ['sender','المرسل'], ['senderTitle','منصب_المرسل'], ['receiverTitle','منصب_المستقبل'], ['priority','الدرجة'], ['subject','الموضوع'], ['content','المحتوى'], ['branch','الحلقة'], ['status','الحالة'], ['date','التاريخ']]  
+            complaints:   [['id','الرقم'], ['sender','المرسل'], ['senderTitle','منصب_المرسل'], ['receiverTitle','المستقبلون'], ['priority','الدرجة'], ['subject','الموضوع'], ['content','المحتوى'], ['status','الحالة'], ['date','التاريخ']]  
         };  
 
         const SHEET_TAB_NAMES = {  
@@ -3730,7 +3730,7 @@ function doGet(e) {
                             existing.status = p.status || existing.status;  
                             updated++;  
                         } else {  
-                            complaints.unshift({ id: parseInt(p.id) || nextId(complaints), sender: p.sender || '', senderRole: '', senderTitle: p.senderTitle || '', receiverTitle: p.receiverTitle || '', priority: p.priority || 'عادية', subject: p.subject || '', content: p.content || '', branch: p.branch || '', status: p.status || 'نشط', date: p.date || nowStr(), replies: [], currentLevelIndex: hierarchyOrder.length - 1 });  
+                            complaints.unshift({ id: parseInt(p.id) || nextId(complaints), sender: p.sender || '', senderRole: '', senderTitle: p.senderTitle || '', receiverNames: [], receiverTitle: p.receiverTitle || '', priority: p.priority || 'عادية', subject: p.subject || '', content: p.content || '', status: p.status || 'نشط', date: p.date || nowStr(), replies: [], currentLevelIndex: hierarchyOrder.length - 1 });  
                             added++;  
                         }  
                     });  
@@ -4336,44 +4336,56 @@ function doGet(e) {
                 showNotification("تعذر العثور على المحتوى المطلوب طباعته.", "warn");  
                 return;  
             }  
-  
+
             const centerName = document.getElementById('center-title-display') ? document.getElementById('center-title-display').innerText : 'مركز سمائل القرآني';  
             const printedBy = currentActiveUser ? `${currentActiveUser.name} (${currentActiveUser.jobTitle || systemTerms[currentActiveUser.role] || ''})` : '';  
             const now = new Date();  
             const dateStr = now.toLocaleDateString('ar-OM', { year: 'numeric', month: 'long', day: 'numeric' });  
             const timeStr = now.toLocaleTimeString('ar-OM', { hour: '2-digit', minute: '2-digit' });  
-  
+
+            // قراءة الألوان والخطوط الفعلية التي يستخدمها صاحب المنظومة حالياً، بدل تثبيتها يدوياً،   
+            // لتُطابق الطباعة هوية المركز البصرية الحقيقية تماماً كما تظهر داخل النظام  
+            const rootStyles = getComputedStyle(document.documentElement);  
+            const primaryColor = (rootStyles.getPropertyValue('--primary-color') || '#0f5132').trim() || '#0f5132';  
+            const primaryLight = (rootStyles.getPropertyValue('--primary-light') || '#e6f0eb').trim() || '#e6f0eb';  
+            const inkColor = (rootStyles.getPropertyValue('--ink') || '#1f2937').trim() || '#1f2937';  
+            const mainFont = (rootStyles.getPropertyValue('--font-main-heading') || "'Amiri'").trim().replace(/'/g, '') || 'Amiri';  
+            const subFont = (rootStyles.getPropertyValue('--font-sub-heading') || "'Cairo'").trim().replace(/'/g, '') || 'Cairo';  
+            const logoHtml = systemLogo  
+                ? `<img src="${systemLogo}" alt="شعار المركز" style="width:64px;height:64px;object-fit:contain;border-radius:12px;border:2px solid ${primaryColor};" />`  
+                : '';  
+
             // استنساخ المحتوى المستهدف فقط وتنظيفه من عناصر التحكم (أزرار، حقول إدخال تفاعلية) لتظهر الطباعة نظيفة  
             const clone = el.cloneNode(true);  
             clone.querySelectorAll('button, .no-print, input[type="checkbox"] ~ button, select').forEach(node => {  
-                // إبقاء محتوى القوائم المنسدلة كنص إن وجدت داخل جداول العرض فقط عند الحاجة، وإزالة عناصر التحكم غير المجدية للطباعة  
                 if (node.tagName === 'BUTTON') node.remove();  
             });  
-  
+
             const printWindow = window.open('', '_blank', 'width=1000,height=800');  
             if (!printWindow) {  
                 showNotification("يرجى السماح بالنوافذ المنبثقة لتفعيل خاصية الطباعة.", "warn");  
                 return;  
             }  
-  
+
             printWindow.document.write(`  
                 <!DOCTYPE html>  
                 <html lang="ar" dir="rtl">  
                 <head>  
                     <meta charset="UTF-8">  
                     <title>${reportTitle} - ${centerName}</title>  
-                    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">  
+                    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Amiri:wght@400;700&family=Tajawal:wght@400;700;800&family=Almarai:wght@400;700;800&family=Reem+Kufi:wght@400;700&family=Aref+Ruqaa:wght@400;700&family=Lalezar&family=El+Messiri:wght@400;700&family=Markazi+Text:wght@400;700&family=Changa:wght@400;700&display=swap" rel="stylesheet">  
                     <style>  
                         * { box-sizing: border-box; }  
-                        body { font-family: 'Cairo', sans-serif; padding: 30px; color: #1f2937; direction: rtl; }  
-                        .print-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #0f5132; padding-bottom: 14px; margin-bottom: 6px; }  
-                        .print-header h1 { font-size: 20px; color: #0f5132; margin: 0 0 4px 0; }  
+                        body { font-family: '${subFont}', 'Cairo', sans-serif; padding: 30px; color: ${inkColor}; direction: rtl; }  
+                        .print-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; border-bottom: 3px solid ${primaryColor}; padding-bottom: 14px; margin-bottom: 6px; }  
+                        .print-header-titles { display: flex; align-items: center; gap: 12px; }  
+                        .print-header h1 { font-family: '${mainFont}', 'Amiri', serif; font-size: 20px; color: ${primaryColor}; margin: 0 0 4px 0; }  
                         .print-header p { font-size: 12px; color: #6b7280; margin: 0; }  
                         .print-meta { text-align: left; font-size: 11px; color: #6b7280; }  
-                        .print-title-bar { background: #e6f0eb; color: #0f5132; font-weight: 700; font-size: 15px; padding: 10px 14px; border-radius: 8px; margin: 16px 0; }  
+                        .print-title-bar { background: ${primaryLight}; color: ${primaryColor}; font-weight: 700; font-size: 15px; padding: 10px 14px; border-radius: 8px; margin: 16px 0; }  
                         table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }  
-                        th, td { border: 1px solid #d1d5db; padding: 8px; text-align: right; }  
-                        th { background: #0f5132; color: #fff; font-weight: 700; }  
+                        th, td { border: 1px solid #d1d5db; padding: 8px; text-align: right; color: ${inkColor}; }  
+                        th { background: ${primaryColor}; color: #fff; font-weight: 700; }  
                         tr:nth-child(even) td { background: #f9fafb; }  
                         .print-footer { margin-top: 26px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size: 10px; color: #9ca3af; display: flex; justify-content: space-between; }  
                         button, .no-print, input, select { display: none !important; }  
@@ -4385,9 +4397,12 @@ function doGet(e) {
                 </head>  
                 <body>  
                     <div class="print-header">  
-                        <div>  
-                            <h1>${centerName}</h1>  
-                            <p>نظام حوكمة الصلاحيات وإدارة الفروع والحسابات المتكاملة</p>  
+                        <div class="print-header-titles">  
+                            ${logoHtml}  
+                            <div>  
+                                <h1>${centerName}</h1>  
+                                <p>نظام حوكمة الصلاحيات وإدارة الفروع والحسابات المتكاملة</p>  
+                            </div>  
                         </div>  
                         <div class="print-meta">  
                             <div>تاريخ الطباعة: ${dateStr}</div>  
@@ -4406,7 +4421,7 @@ function doGet(e) {
             `);  
             printWindow.document.close();  
             printWindow.focus();  
-  
+
             setTimeout(() => {  
                 printWindow.print();  
             }, 400);  
@@ -4991,6 +5006,21 @@ function doGet(e) {
             return dataArray.filter(item => item.branch === currentActiveUser.branch);  
         }  
 
+        // ===== توجيه المراسلات للشخص المعني فعلياً، لا بالحلقة فقط: تظهر المعاملة لمن أرسلها،   
+        // أو لمن هي موجَّهة إليه بالاسم تحديداً، أو لمن يشغل المستوى الإداري الحالي للمعاملة، بالإضافة   
+        // للإدارة العامة التي ترى كل شيء دائماً =====  
+        function getVisibleComplaintsForCurrentUser() {  
+            if (currentActiveUser.role === 'role_0') return complaints;  
+
+            return complaints.filter(c => {  
+                const isSender = c.sender === currentActiveUser.name;  
+                const isNamedReceiver = Array.isArray(c.receiverNames) && c.receiverNames.includes(currentActiveUser.name);  
+                const levelIdx = typeof c.currentLevelIndex === 'number' ? c.currentLevelIndex : hierarchyOrder.length - 1;  
+                const isAtMyHierarchyLevel = hierarchyOrder[levelIdx] === currentActiveUser.role;  
+                return isSender || isNamedReceiver || isAtMyHierarchyLevel;  
+            });  
+        }  
+
         // ===== حساب الاستقلالية المالية الكاملة لكل حلقة/فرع على حدة (كل حلقة جديدة تُحسب بمعزل تام) =====  
         // ===== عرض تفاصيل قابلة للطباعة لأي إحصائية بلوحة التحكم عند الضغط عليها =====  
         function buildDetailsTable(headers, rows) {  
@@ -5077,13 +5107,13 @@ function doGet(e) {
 
             } else if (kind === 'complaintsActive') {  
                 title = 'تفاصيل البلاغات والمراسلات النشطة';  
-                const rows = complaints.filter(c => c.status === 'نشط').map(c => [c.subject, c.sender, c.branch, c.date]);  
-                html = buildDetailsTable(['الموضوع', 'المرسل', 'الحلقة', 'التاريخ'], rows);  
+                const rows = complaints.filter(c => c.status === 'نشط').map(c => [c.subject, c.sender, c.receiverTitle || '—', c.date]);  
+                html = buildDetailsTable(['الموضوع', 'المرسل', 'المستقبل', 'التاريخ'], rows);  
 
             } else if (kind === 'complaintsApproved') {  
                 title = 'تفاصيل البلاغات المعتمدة رسمياً';  
-                const rows = complaints.filter(c => c.status === 'معتمد رسمياً').map(c => [c.subject, c.sender, c.branch, c.date]);  
-                html = buildDetailsTable(['الموضوع', 'المرسل', 'الحلقة', 'التاريخ'], rows);  
+                const rows = complaints.filter(c => c.status === 'معتمد رسمياً').map(c => [c.subject, c.sender, c.receiverTitle || '—', c.date]);  
+                html = buildDetailsTable(['الموضوع', 'المرسل', 'المستقبل', 'التاريخ'], rows);  
             }  
 
             titleEl.innerText = title;  
@@ -5132,7 +5162,7 @@ function doGet(e) {
             const fStudents = getFilteredData(students);  
             const fTransactions = getFilteredData(financialTransactions);  
             const fAssets = getFilteredData(assets);  
-            const fComplaints = getFilteredData(complaints);  
+            const fComplaints = getVisibleComplaintsForCurrentUser();  
             const fAchievements = getFilteredData(achievements);  
   
             const studentsCount = document.getElementById('stat-students-count');  
@@ -5208,8 +5238,9 @@ function doGet(e) {
                         const branchAchievementsCount = achievements.filter(a => a.branch === myBranch).length;  
                         const branchExamsCount = exams.filter(e => branchStudentNames.includes(e.student)).length;  
                         const branchAssetsQty = assets.filter(a => a.branch === myBranch).reduce((sum, a) => sum + (parseInt(a.qty) || 0), 0);  
-                        const branchActiveComplaints = complaints.filter(c => c.branch === myBranch && c.status === 'نشط').length;  
-                        const branchApprovedComplaints = complaints.filter(c => c.branch === myBranch && c.status === 'معتمد رسمياً').length;  
+                        const myVisibleComplaints = getVisibleComplaintsForCurrentUser();  
+                        const branchActiveComplaints = myVisibleComplaints.filter(c => c.status === 'نشط').length;  
+                        const branchApprovedComplaints = myVisibleComplaints.filter(c => c.status === 'معتمد رسمياً').length;  
 
                         // إخفاء البطاقتين اللتين لا معنى لهما على مستوى حلقة واحدة، وإخفاء الجدول المالي بالكامل  
                         if (branchesCard) branchesCard.classList.add('hidden');  
@@ -5616,9 +5647,8 @@ function doGet(e) {
                                 <span>من: ${c.senderTitle || c.sender}</span>  
                                 <span>إلى: ${c.receiverTitle || '—'}</span>  
                             </div>  
-                            <div class="flex justify-between text-[10px] text-gray-400 font-bold">  
-                                <span>الجهة: حلقة ${c.branch}</span>  
-                                <span>المرسل الفعلي: ${c.sender}</span>  
+                            <div class="flex justify-end text-[10px] text-gray-400 font-bold">  
+                                <span>المرسل الفعلي (الحساب): ${c.sender}</span>  
                             </div>  
                             ${repliesHtml}  
                             <div class="flex gap-1.5 pt-1.5 flex-wrap">  
@@ -5640,7 +5670,7 @@ function doGet(e) {
         }  
   
         function populateSelectOptions() {  
-            const selectsToPopulate = ['std-branch', 'staff-branch', 'edit-staff-branch', 'v-branch', 'asset-branch', 'comp-branch', 'student-filter-branch', 'staff-assign-branch', 'edit-staff-assign-branch', 'hr-branch', 'hr-edit-branch'];  
+            const selectsToPopulate = ['std-branch', 'staff-branch', 'edit-staff-branch', 'v-branch', 'asset-branch', 'student-filter-branch', 'staff-assign-branch', 'edit-staff-assign-branch', 'hr-branch', 'hr-edit-branch'];  
             selectsToPopulate.forEach(selectId => {  
                 const select = document.getElementById(selectId);  
                 if (!select) return;  
@@ -5699,22 +5729,39 @@ function doGet(e) {
                 if (currentVal) select.value = currentVal;  
             });  
   
-            const correspondenceUserSelects = ['comp-sender-name', 'comp-receiver-name'];  
-            correspondenceUserSelects.forEach(selectId => {  
-                const select = document.getElementById(selectId);  
-                if (!select) return;  
-
-                const currentVal = select.value;  
+            const senderSelect = document.getElementById('comp-sender-name');  
+            if (senderSelect) {  
+                const currentVal = senderSelect.value;  
                 let html = '<option value="">— اختر —</option>';  
 
                 employees.filter(e => !!e.username).forEach(e => {  
                     const title = e.jobTitle || systemTerms[e.role] || '';  
-                    html += `<option value="${e.name}${title ? ' (' + title + ')' : ''}">${e.name}${title ? ' — ' + title : ''}</option>`;  
+                    html += `<option value="${e.name}">${e.name}${title ? ' — ' + title : ''}</option>`;  
                 });  
 
-                select.innerHTML = html;  
-                if (currentVal) select.value = currentVal;  
-            });  
+                senderSelect.innerHTML = html;  
+                if (currentVal) senderSelect.value = currentVal;  
+            }  
+
+            const receiversChecklist = document.getElementById('comp-receivers-checklist');  
+            if (receiversChecklist) {  
+                // نحافظ على من كان مختاراً سابقاً قبل إعادة البناء (مثلاً بعد إضافة موظف جديد)  
+                const previouslyChecked = Array.from(receiversChecklist.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);  
+
+                let html = '';  
+                employees.filter(e => !!e.username).forEach(e => {  
+                    const title = e.jobTitle || systemTerms[e.role] || '';  
+                    const isChecked = previouslyChecked.includes(e.name);  
+                    html += `  
+                        <label class="flex items-center gap-1.5 text-xs cursor-pointer hover:bg-gray-50 rounded p-0.5">  
+                            <input type="checkbox" value="${e.name}" ${isChecked ? 'checked' : ''} class="w-3.5 h-3.5 text-custom-primary">  
+                            <span>${e.name}${title ? ' — ' + title : ''}</span>  
+                        </label>  
+                    `;  
+                });  
+
+                receiversChecklist.innerHTML = html || '<span class="text-[11px] text-gray-400">لا يوجد مستخدمون بصلاحية دخول بعد</span>';  
+            }  
 
             const staffRoleSelects = ['staff-role', 'edit-staff-role'];  
             staffRoleSelects.forEach(selectId => {  
@@ -7182,25 +7229,38 @@ function doGet(e) {
         function submitComplaint(event) {  
             event.preventDefault();  
             const subject = document.getElementById('comp-subject').value.trim();  
-            const branch = document.getElementById('comp-branch').value;  
             const content = document.getElementById('comp-content').value.trim();  
-            const senderTitle = document.getElementById('comp-sender-name').value.trim();  
-            const receiverTitle = document.getElementById('comp-receiver-name').value.trim();  
+            const senderName = document.getElementById('comp-sender-name').value.trim();  
+            const receiversChecklist = document.getElementById('comp-receivers-checklist');  
+            const receiverNames = receiversChecklist  
+                ? Array.from(receiversChecklist.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value)  
+                : [];  
             const priority = document.getElementById('comp-priority').value;  
+
+            const findEmpTitle = (name) => {  
+                const emp = employees.find(e => e.name === name);  
+                return emp ? (emp.jobTitle || systemTerms[emp.role] || '') : '';  
+            };  
 
             const now = new Date();  
             const dateStr = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2, '0') + "-" + String(now.getDate()).padStart(2, '0') + " " + String(now.getHours()).padStart(2, '0') + ":" + String(now.getMinutes()).padStart(2, '0');  
 
             const senderLevelIdx = hierarchyOrder.indexOf(currentActiveUser.role);  
 
+            const receiverTitlesDisplay = receiverNames.map(name => {  
+                const t = findEmpTitle(name);  
+                return `${name}${t ? ' — ' + t : ''}`;  
+            }).join('، ');  
+
             const newComplaint = {  
                 id: nextId(complaints),  
                 sender: currentActiveUser.name,  
                 senderRole: currentActiveUser.role,  
-                senderTitle: senderTitle || systemTerms[currentActiveUser.role] || '',  
-                receiverTitle: receiverTitle || '',  
+                senderTitle: senderName ? `${senderName}${findEmpTitle(senderName) ? ' — ' + findEmpTitle(senderName) : ''}` : (systemTerms[currentActiveUser.role] || ''),  
+                receiverNames: receiverNames,  
+                receiverTitle: receiverTitlesDisplay || '',  
                 priority: priority || 'عادية',  
-                subject, content, branch, status: "نشط", date: dateStr, replies: [],  
+                subject, content, status: "نشط", date: dateStr, replies: [],  
                 currentLevelIndex: senderLevelIdx >= 0 ? senderLevelIdx : hierarchyOrder.length - 1  
             };  
             complaints.unshift(newComplaint);  
@@ -7208,10 +7268,12 @@ function doGet(e) {
             document.getElementById('comp-subject').value = '';  
             document.getElementById('comp-content').value = '';  
             document.getElementById('comp-sender-name').value = '';  
-            document.getElementById('comp-receiver-name').value = '';  
+            if (receiversChecklist) {  
+                receiversChecklist.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });  
+            }  
             document.getElementById('comp-priority').value = 'عادية';  
 
-            showNotification("تم إرسال وتوجيه المراسلة الإدارية للجهة المحددة بنجاح", "success");  
+            showNotification("تم إرسال وتوجيه المراسلة للجهات المحددة بنجاح", "success");  
             refreshAllViews();  
             saveToLocalStorage();  
             syncRecordToGoogleSheet('complaints', 'إضافة', newComplaint);  
