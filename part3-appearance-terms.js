@@ -223,36 +223,11 @@
             saveToLocalStorage();  
         }  
   
+        // ملاحظة: أُزيلت ميزة "محاكي تبديل الأدوار" نهائياً لأسباب أمنية (كانت تسمح بانتحال   
+        // هوية أي موظف آخر فوراً دون كلمة سر). أبقيت هذه الدالة كـ"لا تفعل شيئاً" فقط حتى لا   
+        // نحتاج لتعديل كل الأماكن التي تستدعيها في أنحاء النظام.  
         function renderRoleSwitcher() {  
-            const container = document.getElementById('role-simulation-container');  
-            if (!container) return;  
-  
-            const parentSection = container.closest('section');  
-            if (!parentSection) return;  
-  
-            // حجب محاكي الأدوار بالكامل عن المنسقات والمعلمات والمشرفين لمنع تعديل الحسابات  
-            if (currentActiveUser.role !== 'role_0' && currentActiveUser.role !== 'role_1') {  
-                parentSection.classList.add('hidden');  
-                return;  
-            } else {  
-                parentSection.classList.remove('hidden');  
-            }  
-  
-            container.innerHTML = '';  
-            employees.filter(emp => !!emp.username).forEach(emp => {  
-                const isActive = currentActiveUser.id === emp.id;  
-                const activeStyle = isActive   
-                    ? "bg-custom-primary text-white border-custom-primary font-bold shadow-md scale-105"   
-                    : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100";  
-                  
-                const opacity = emp.status === 'معطل' ? 'opacity-40 line-through' : '';  
-  
-                container.innerHTML += `  
-                    <button onclick="switchUser(${emp.id})" class="px-3 py-1.5 rounded-lg text-xs font-semibold border transition flex items-center justify-center gap-1.5 ${activeStyle} ${opacity}">  
-                        <i class="fa-solid fa-circle-user"></i> ${emp.name} (${emp.jobTitle || systemTerms[emp.role]})  
-                    </button>  
-                `;  
-            });  
+            return;  
         }  
   
         function switchUser(userId) {  
