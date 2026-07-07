@@ -125,6 +125,12 @@
                 if (fontSubHeading) document.documentElement.style.setProperty('--font-sub-heading', `'${fontSubHeading}'`);  
                 updateSystemLogoUI();  
                 renderLoginHints();  
+                // إعادة بناء شريط التبويبات والتحقق من التبويب النشط فوراً عند وصول أي تحديث للصلاحيات   
+                // من جهاز آخر — وإلا فقد تبقى تبويبات ظاهرة لمستخدم مسجّل دخوله بالفعل رغم سحب صلاحيته منها للتو  
+                if (currentActiveUser) {  
+                    renderNavigationBar();  
+                    adjustActiveTab();  
+                }  
                 refreshAllViews();  
                 saveToLocalStorage();  
             } finally {  
