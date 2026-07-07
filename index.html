@@ -3079,6 +3079,30 @@ function doGet(e) {
         // قديمة من Firebase بعد إعادة فتح الصفحة (مثلاً إن أُغلقت الصفحة بسرعة قبل اكتمال الدفع)  
         let lastLocalChangeTimestamp = 0;  
         let autoSyncFromSheetEnabled = false;  
+        // سجل حذف محمي: يمنع عودة البيانات المحذوفة من Firebase أو Google Sheet بعد تسجيل الخروج/الدخول
+        let deletedRecords = {};
+
+        function markDeletedRecord(type, id) {
+            if (!type || id === undefined || id === null || id === '') return;
+            if (!deletedRecords[type]) deletedRecords[type] = {};
+            deletedRecords[type][String(id)] = Date.now();
+        }
+
+        function isDeletedRecord(type, id) {
+            return !!(deletedRecords && deletedRecords[type] && deletedRecords[type][String(id)]);
+        }
+
+        function mergeDeletedRecords(remoteDeleted) {
+            if (!remoteDeleted || typeof remoteDeleted !== 'object') return;
+            Object.keys(remoteDeleted).forEach(type => {
+                if (!deletedRecords[type]) deletedRecords[type] = {};
+                Object.keys(remoteDeleted[type] || {}).forEach(id => {
+                    const localTime = Number(deletedRecords[type][id] || 0);
+                    const remoteTime = Number(remoteDeleted[type][id] || 0);
+                    if (remoteTime > localTime) deletedRecords[type][id] = remoteTime;
+                });
+            });
+        }
   
         // الأنماط البصرية الجمالية المتكاملة للمنصة  
         const colorThemes = {  
@@ -3147,7 +3171,7 @@ function doGet(e) {
 
         function saveToLocalStorage(pushToFirebase) {  
             if (pushToFirebase === undefined) pushToFirebase = true;  
-            if (pushToFirebase) {  
+            if (pushToFirebase && !isApplyingRemoteUpdate) {  
                 // تسجيل زمن هذا التعديل الحقيقي محلياً، ليُستخدم لاحقاً لاكتشاف أي بيانات قديمة   
                 // تصل من Firebase بعد إعادة فتح الصفحة  
                 lastLocalChangeTimestamp = Date.now();  
@@ -3188,7 +3212,8 @@ function doGet(e) {
                 ['samail_systemTerms', JSON.stringify(systemTerms)],  
                 ['samail_googleSheetWebhookUrl', googleSheetWebhookUrl || ""],  
                 ['samail_firebaseConfig', firebaseConfig ? JSON.stringify(firebaseConfig) : ""],  
-                ['samail_autoSyncFromSheetEnabled', autoSyncFromSheetEnabled ? 'true' : 'false']  
+                ['samail_autoSyncFromSheetEnabled', autoSyncFromSheetEnabled ? 'true' : 'false'],  
+                ['samail_deletedRecords', JSON.stringify(deletedRecords || {})]  
             ];  
 
             criticalItems.forEach(([key, value]) => {  
@@ -3294,6 +3319,9 @@ function doGet(e) {
                 const autoSyncFlag = localStorage.getItem('samail_autoSyncFromSheetEnabled');  
                 if (autoSyncFlag) autoSyncFromSheetEnabled = autoSyncFlag === 'true';  
             } catch (e) { /* تجاهل */ }  
+
+            const loadedDeletedRecords = safeLoadJSON('samail_deletedRecords');
+            if (loadedDeletedRecords && typeof loadedDeletedRecords === 'object') deletedRecords = loadedDeletedRecords;
 
             const loadedRolePermissions = safeLoadJSON('samail_rolePermissions');  
             if (loadedRolePermissions) rolePermissions = loadedRolePermissions;  
@@ -3424,14 +3452,14 @@ function doGet(e) {
             // كاملة، فتُعيدها فوراً وكأن التصفير لم يحدث إطلاقاً =====  
             const factoryDefaultState = {  
                 systemTerms: systemTerms, rolePermissions: rolePermissions,  
-                branches: [], programs: [], students: [], financialTransactions: [], assets: [],  
+                branches: [], programs: [], programFees: [], students: [], financialTransactions: [], assets: [],  
                 complaints: [], achievements: [], exams: [], guardians: [],  
                 employees: [{ id: 1, name: "الإدارة العامة للمنظومة", role: "role_0", username: "admin", password: "admin123", status: "نشط", email: "admin@samail.org" }],  
                 hierarchyOrder: hierarchyOrder, activeTheme: 'quranGreen', customThemeColors: null,  
                 customTextColor: null, headerTitleColor: null, loginScreenColor: null, systemLogo: null,  
                 modalHeaderTextColor: null, fontMainHeading: null, fontSubHeading: null,  
                 googleSheetWebhookUrl: null, autoSyncFromSheetEnabled: false, termsMetadata: termsMetadata,  
-                lastModified: Date.now()  
+                deletedRecords: {}, lastModified: Date.now()  
             };  
 
             if (firebaseDb) {  
@@ -3464,13 +3492,14 @@ function doGet(e) {
             const confirmed = window.confirm("سيتم حذف كافة سندات القبض والصرف وتصفير الرصيد المالي بالكامل بشكل نهائي، مع الإبقاء على بيانات الطلاب والموظفين كما هي. هل تريد المتابعة؟");  
             if (!confirmed) return;  
 
+            financialTransactions.forEach(t => markDeletedRecord('financial', t.id));
             financialTransactions = [];  
 
             refreshAllViews();  
             const saved = saveToLocalStorage();  
 
             if (saved) {  
-                showNotification("تم تصفير الحسابات المالية بنجاح، وتم حفظ التصفير بشكل دائم بالمتصفح.", "success");  
+                showNotification("تم تصفير الحسابات المالية بنجاح، وتم حفظ التصفير بشكل دائم ولن تعود السندات القديمة بعد تسجيل الخروج.", "success");  
             } else {  
                 showNotification("تم التصفير في الواجهة، لكن حدث خلل أثناء حفظه بشكل دائم بالمتصفح — راجع التنبيه أعلاه لمعرفة السبب.", "warn");  
             }  
@@ -3666,7 +3695,7 @@ function doGet(e) {
                     studentsRows.forEach(row => {  
                         const p = parseSheetRow('students', row);  
                         const idNum = parseInt(p.id);  
-                        if (!p.id || isNaN(idNum)) return;  
+                        if (!p.id || isNaN(idNum) || isDeletedRecord('students', idNum)) return;  
                         let existing = students.find(s => s.id === idNum);  
                         if (existing) {  
                             existing.name = p.name || existing.name;  
@@ -3696,7 +3725,7 @@ function doGet(e) {
                 if (Array.isArray(finRows)) {  
                     finRows.forEach(row => {  
                         const p = parseSheetRow('financial', row);  
-                        if (!p.id) return;  
+                        if (!p.id || isDeletedRecord('financial', p.id)) return;  
                         let existing = financialTransactions.find(t => String(t.id) === String(p.id));  
                         if (existing) {  
                             existing.branch = p.branch || existing.branch;  
@@ -3728,7 +3757,7 @@ function doGet(e) {
                 if (Array.isArray(branchRows)) {  
                     branchRows.forEach(row => {  
                         const p = parseSheetRow('branches', row);  
-                        if (p.name && !branches.includes(p.name)) { branches.push(p.name); added++; }  
+                        if (p.name && !isDeletedRecord('branches', p.name) && !branches.includes(p.name)) { branches.push(p.name); added++; }  
                     });  
                 }  
 
@@ -3737,7 +3766,7 @@ function doGet(e) {
                 if (Array.isArray(progRows)) {  
                     progRows.forEach(row => {  
                         const p = parseSheetRow('programs', row);  
-                        if (!p.name) return;  
+                        if (!p.name || isDeletedRecord('programs', p.name)) return;  
                         let existing = programs.find(pr => pr.name === p.name);  
                         if (existing) {  
                             existing.fee = parseFloat(p.fee) || existing.fee;  
@@ -3754,7 +3783,7 @@ function doGet(e) {
                 if (Array.isArray(achRows)) {  
                     achRows.forEach(row => {  
                         const p = parseSheetRow('achievements', row);  
-                        if (!p.id) return;  
+                        if (!p.id || isDeletedRecord('achievements', p.id)) return;  
                         let existing = achievements.find(a => String(a.id) === String(p.id));  
                         if (existing) {  
                             existing.details = p.details || existing.details;  
@@ -3771,7 +3800,7 @@ function doGet(e) {
                 if (Array.isArray(examRows)) {  
                     examRows.forEach(row => {  
                         const p = parseSheetRow('exams', row);  
-                        if (!p.id) return;  
+                        if (!p.id || isDeletedRecord('exams', p.id)) return;  
                         let existing = exams.find(e => String(e.id) === String(p.id));  
                         if (existing) {  
                             existing.score = parseInt(p.score) || existing.score;  
@@ -3788,7 +3817,7 @@ function doGet(e) {
                 if (Array.isArray(assetRows)) {  
                     assetRows.forEach(row => {  
                         const p = parseSheetRow('assets', row);  
-                        if (!p.id) return;  
+                        if (!p.id || isDeletedRecord('assets', p.id)) return;  
                         let existing = assets.find(a => String(a.id) === String(p.id));  
                         if (existing) {  
                             existing.qty = parseInt(p.qty) || existing.qty;  
@@ -3805,7 +3834,7 @@ function doGet(e) {
                 if (Array.isArray(compRows)) {  
                     compRows.forEach(row => {  
                         const p = parseSheetRow('complaints', row);  
-                        if (!p.id) return;  
+                        if (!p.id || isDeletedRecord('complaints', p.id)) return;  
                         let existing = complaints.find(c => String(c.id) === String(p.id));  
                         if (existing) {  
                             existing.status = p.status || existing.status;  
@@ -3824,7 +3853,7 @@ function doGet(e) {
                     empRows.forEach(row => {  
                         const p = parseSheetRow('employees', row);  
                         const idNum = parseInt(p.id);  
-                        if (!p.id || isNaN(idNum)) return;  
+                        if (!p.id || isNaN(idNum) || isDeletedRecord('employees', idNum)) return;  
                         const existing = employees.find(e => e.id === idNum);  
                         if (existing) {  
                             existing.name = p.name || existing.name;  
@@ -3846,7 +3875,7 @@ function doGet(e) {
                 }  
 
                 refreshAllViews();  
-                saveToLocalStorage();  
+                saveToLocalStorage(false);  
 
                 if (!silent) {  
                     showNotification(`تمت المزامنة من Google Sheet بنجاح: ${added} عنصر جديد، ${updated} عنصر محدَّث.`, "success");  
@@ -3942,6 +3971,7 @@ function doGet(e) {
 
             isApplyingRemoteUpdate = true;  
             try {  
+                if (data.deletedRecords) mergeDeletedRecords(data.deletedRecords);
                 if (data.systemTerms) systemTerms = Object.assign({}, systemTerms, data.systemTerms);  
                 if (data.rolePermissions) rolePermissions = data.rolePermissions;  
                 if (Array.isArray(data.branches)) branches = data.branches;  
@@ -3968,6 +3998,20 @@ function doGet(e) {
                 if (data.googleSheetWebhookUrl) googleSheetWebhookUrl = data.googleSheetWebhookUrl;  
                 if (typeof data.autoSyncFromSheetEnabled === 'boolean') autoSyncFromSheetEnabled = data.autoSyncFromSheetEnabled;  
                 if (data.termsMetadata) { try { Object.assign(termsMetadata, data.termsMetadata); } catch (e) { /* تجاهل */ } }  
+
+                // تطبيق سجل الحذف بعد استقبال البيانات الحية حتى لا تعود العناصر المحذوفة من جهاز آخر أو من لقطة قديمة
+                students = students.filter(x => !isDeletedRecord('students', x.id));
+                guardians = guardians.filter(x => !isDeletedRecord('guardians', x.id));
+                financialTransactions = financialTransactions.filter(x => !isDeletedRecord('financial', x.id));
+                achievements = achievements.filter(x => !isDeletedRecord('achievements', x.id));
+                exams = exams.filter(x => !isDeletedRecord('exams', x.id));
+                assets = assets.filter(x => !isDeletedRecord('assets', x.id));
+                complaints = complaints.filter(x => !isDeletedRecord('complaints', x.id));
+                employees = employees.filter(x => !isDeletedRecord('employees', x.id));
+                branches = branches.filter(x => !isDeletedRecord('branches', x));
+                programs = programs.filter(x => !isDeletedRecord('programs', x.name || x));
+                programFees = programFees.filter(x => !isDeletedRecord('programFees', x.id));
+
                 updateGoogleSheetStatusUI();  
                 if (autoSyncFromSheetEnabled && googleSheetWebhookUrl) { startAutoSyncInterval(); } else { stopAutoSyncInterval(); }  
 
@@ -4003,7 +4047,7 @@ function doGet(e) {
                 modalHeaderTextColor: modalHeaderTextColor || null,  
                 fontMainHeading: fontMainHeading || null, fontSubHeading: fontSubHeading || null,  
                 googleSheetWebhookUrl: googleSheetWebhookUrl || null, autoSyncFromSheetEnabled: autoSyncFromSheetEnabled || false,  
-                termsMetadata: termsMetadata,  
+                termsMetadata: termsMetadata, deletedRecords: deletedRecords || {},  
                 lastModified: lastLocalChangeTimestamp || Date.now()  
             };  
         }  
@@ -6066,6 +6110,7 @@ function doGet(e) {
                 }  
             }  
   
+            markDeletedRecord('employees', empId);
             employees = employees.filter(e => e.id !== empId);  
             showNotification(`تم حذف سجل الموظف [${emp.name}] بالكامل من المنظومة`, "success");  
               
@@ -6478,6 +6523,7 @@ function doGet(e) {
             const confirmed = window.confirm(`سيتم حذف الحلقة [${branchName}] نهائياً من المنظومة. هل تريد المتابعة؟`);  
             if (!confirmed) return;  
 
+            markDeletedRecord('branches', branchName);
             branches = branches.filter(b => b !== branchName);  
             showNotification(`تم حذف الحلقة [${branchName}] بنجاح`, "success");  
             refreshAllViews();  
@@ -6539,6 +6585,7 @@ function doGet(e) {
 
         function deleteProgramFee(feeId) {
             if (!window.confirm('هل تريد حذف إعداد الرسوم هذا؟')) return;
+            markDeletedRecord('programFees', feeId);
             programFees = programFees.filter(f => f.id !== feeId);
             refreshAllViews();
             saveToLocalStorage();
@@ -6558,6 +6605,7 @@ function doGet(e) {
 
             const prog = findProgramByNameOrId(programName);
             const pid = prog ? (prog.id || prog.name) : programName;
+            markDeletedRecord('programs', programName);
             programs = programs.filter(p => (p.name || p) !== programName);
             programFees = programFees.filter(f => String(f.programId) !== String(pid));  
             showNotification(`تم حذف البرنامج [${programName}] بنجاح`, "success");  
@@ -6907,6 +6955,7 @@ function doGet(e) {
             const confirmed = window.confirm(`سيتم حذف ولي الأمر [${g.name}] نهائياً من السجل. هل تريد المتابعة؟`);  
             if (!confirmed) return;  
 
+            markDeletedRecord('guardians', id);
             guardians = guardians.filter(gd => gd.id !== id);  
             showNotification(`تم حذف ولي الأمر [${g.name}] بنجاح`, "success");  
             refreshAllViews();  
@@ -6920,6 +6969,7 @@ function doGet(e) {
             const confirmed = window.confirm(`سيتم حذف ملف الطالب [${s.name}] نهائياً من النظام. علماً بأن السندات المالية المرتبطة به تبقى في السجل المحاسبي التاريخي. هل تريد المتابعة؟`);  
             if (!confirmed) return;  
 
+            markDeletedRecord('students', id);
             students = students.filter(std => std.id !== id);  
             showNotification(`تم حذف ملف الطالب [${s.name}] بنجاح`, "success");  
             refreshAllViews();  
@@ -7351,6 +7401,7 @@ function doGet(e) {
             const confirmed = window.confirm(`سيتم حذف السند [${id}] نهائياً من السجل المالي. هل تريد المتابعة؟`);  
             if (!confirmed) return;  
 
+            markDeletedRecord('financial', id);
             financialTransactions = financialTransactions.filter(tr => tr.id !== id);  
 
             if (t.studentId) {  
@@ -7509,6 +7560,7 @@ function doGet(e) {
             if (!ach) return;  
             const confirmed = window.confirm(`سيتم حذف إنجاز الطالب [${ach.student}] نهائياً من السجل. هل تريد المتابعة؟`);  
             if (!confirmed) return;  
+            markDeletedRecord('achievements', id);
             achievements = achievements.filter(a => a.id !== id);  
             showNotification("تم حذف الإنجاز بنجاح", "success");  
             refreshAllViews();  
@@ -7542,6 +7594,7 @@ function doGet(e) {
             if (!ex) return;  
             const confirmed = window.confirm(`سيتم حذف اختبار [${ex.exam}] للطالب [${ex.student}] نهائياً من السجل. هل تريد المتابعة؟`);  
             if (!confirmed) return;  
+            markDeletedRecord('exams', id);
             exams = exams.filter(e => e.id !== id);  
             showNotification("تم حذف الاختبار بنجاح", "success");  
             refreshAllViews();  
@@ -7571,6 +7624,7 @@ function doGet(e) {
             if (!a) return;  
             const confirmed = window.confirm(`سيتم حذف العهدة [${a.name}] نهائياً من السجل. هل تريد المتابعة؟`);  
             if (!confirmed) return;  
+            markDeletedRecord('assets', id);
             assets = assets.filter(x => x.id !== id);  
             showNotification(`تم حذف العهدة [${a.name}] بنجاح`, "success");  
             refreshAllViews();  
@@ -7648,6 +7702,7 @@ function doGet(e) {
             const confirmed = window.confirm(`سيتم حذف المعاملة [${c.subject}] نهائياً من سجل المراسلات، بما في ذلك كل الردود والتعقيبات المرتبطة بها. هل تريد المتابعة؟`);  
             if (!confirmed) return;  
 
+            markDeletedRecord('complaints', id);
             complaints = complaints.filter(comp => comp.id !== id);  
             showNotification("تم حذف المعاملة بنجاح", "success");  
             refreshAllViews();  
