@@ -752,32 +752,43 @@
         }  
   
         function renderTermsEditor() {  
+            const rolesGrid = document.getElementById('terms-editor-roles-grid');  
             const grid = document.getElementById('terms-editor-grid');  
-            if (!grid) return;  
-              
+            if (!rolesGrid || !grid) return;  
+
+            rolesGrid.innerHTML = '';  
             grid.innerHTML = '';  
+
+            const isRoleKey = (key) => /^role_\d$/.test(key);  
+
+            const buildFieldHtml = (key, meta) => `  
+                <div class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm space-y-1.5 text-right">  
+                    <div class="flex items-center gap-1.5">  
+                        <input type="text" id="term-label-${key}" value="${meta.label}" title="عنوان هذا الحقل — قابل للتعديل بحرية" onkeydown="if(event.key==='Enter'){event.preventDefault(); saveSingleTerm('${key}');}" class="w-full text-xs font-bold text-custom-primary border border-custom-primary/20 bg-custom-primary-light rounded p-1.5 focus:ring-1 focus:ring-custom-primary focus:outline-none">  
+                        ${meta.custom ? `<button type="button" onclick="deleteCustomTerm('${key}')" class="text-rose-500 hover:text-rose-700 flex-shrink-0" title="حذف هذا المصطلح المخصص"><i class="fa-solid fa-trash text-[11px]"></i></button>` : ''}  
+                    </div>  
+                    <div class="flex items-center gap-1.5">  
+                        <input type="text" id="term-input-${key}" value="${systemTerms[key]}" onkeydown="if(event.key==='Enter'){event.preventDefault(); saveSingleTerm('${key}');}" class="w-full text-xs border border-gray-300 rounded p-2 focus:ring-1 focus:ring-custom-primary focus:outline-none">  
+                        <button type="button" onclick="saveSingleTerm('${key}')" title="حفظ العنوان والقيمة معاً فوراً دون التأثير على البقية" class="bg-custom-primary bg-custom-primary-hover text-white text-[11px] px-2.5 py-2 rounded-lg font-bold transition flex-shrink-0">  
+                            <i class="fa-solid fa-check"></i>  
+                        </button>  
+                    </div>  
+                    <span class="block text-[10px] text-gray-400 font-semibold leading-tight">${meta.desc}</span>  
+                </div>  
+            `;  
+
             for (const key in systemTerms) {  
                 const meta = termsMetadata[key];  
                 if (!meta) continue;  
-                  
-                grid.innerHTML += `  
-                    <div class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm space-y-1.5 text-right">  
-                        <div class="flex items-center gap-1.5">  
-                            <input type="text" id="term-label-${key}" value="${meta.label}" title="عنوان هذا الحقل — قابل للتعديل بحرية" onkeydown="if(event.key==='Enter'){event.preventDefault(); saveSingleTerm('${key}');}" class="w-full text-xs font-bold text-custom-primary border border-custom-primary/20 bg-custom-primary-light rounded p-1.5 focus:ring-1 focus:ring-custom-primary focus:outline-none">  
-                            ${meta.custom ? `<button type="button" onclick="deleteCustomTerm('${key}')" class="text-rose-500 hover:text-rose-700 flex-shrink-0" title="حذف هذا المصطلح المخصص"><i class="fa-solid fa-trash text-[11px]"></i></button>` : ''}  
-                        </div>  
-                        <div class="flex items-center gap-1.5">  
-                            <input type="text" id="term-input-${key}" value="${systemTerms[key]}" onkeydown="if(event.key==='Enter'){event.preventDefault(); saveSingleTerm('${key}');}" class="w-full text-xs border border-gray-300 rounded p-2 focus:ring-1 focus:ring-custom-primary focus:outline-none">  
-                            <button type="button" onclick="saveSingleTerm('${key}')" title="حفظ العنوان والقيمة معاً فوراً دون التأثير على البقية" class="bg-custom-primary bg-custom-primary-hover text-white text-[11px] px-2.5 py-2 rounded-lg font-bold transition flex-shrink-0">  
-                                <i class="fa-solid fa-check"></i>  
-                            </button>  
-                        </div>  
-                        <span class="block text-[10px] text-gray-400 font-semibold leading-tight">${meta.desc}</span>  
-                    </div>  
-                `;  
+
+                if (isRoleKey(key)) {  
+                    rolesGrid.innerHTML += buildFieldHtml(key, meta);  
+                } else {  
+                    grid.innerHTML += buildFieldHtml(key, meta);  
+                }  
             }  
         }  
-  
+
         // ===== إضافة عنوان / مصطلح مخصص جديد يستطيع مدير النظام إضافته بحرية =====  
         function addCustomTerm() {  
             const labelInput = document.getElementById('new-custom-term-label');  

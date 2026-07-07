@@ -1252,8 +1252,20 @@
                         </div>  
                     </div>  
 
+                    <!-- جدول مستقل خاص بمسميات المناصب والمهن العشرة فقط -->  
+                    <h5 class="font-bold text-custom-primary text-xs pb-1.5 border-b flex items-center gap-1.5 mt-2">  
+                        <i class="fa-solid fa-sitemap"></i> مسميات المناصب والمهن (تظهر كأعمدة في مصفوفة الصلاحيات)  
+                    </h5>  
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="terms-editor-roles-grid">  
+                        <!-- سيتم بناء حقول تحرير مسميات المناصب العشرة ديناميكياً هنا فقط -->  
+                    </div>  
+
+                    <!-- جدول مستقل خاص ببقية مسميات واجهات المنظومة (غير المناصب) -->  
+                    <h5 class="font-bold text-custom-primary text-xs pb-1.5 border-b flex items-center gap-1.5 mt-6">  
+                        <i class="fa-solid fa-font"></i> بقية مسميات واجهات المنظومة (الحلقات، الطلاب، البرامج، وغيرها)  
+                    </h5>  
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="terms-editor-grid">  
-                        <!-- سيتم بناء حقول تحرير المصطلحات ديناميكياً هنا -->  
+                        <!-- سيتم بناء حقول تحرير بقية المصطلحات ديناميكياً هنا -->  
                     </div>  
                     <div class="pt-4 border-t flex justify-end">  
                         <button onclick="saveSystemTerms()" class="bg-custom-primary bg-custom-primary-hover text-white text-xs px-6 py-2.5 rounded-lg font-bold shadow transition flex items-center gap-2">  
