@@ -88,6 +88,7 @@
                 if (Array.isArray(data.programs)) programs = data.programs;  
                 if (Array.isArray(data.students)) students = data.students;  
                 if (Array.isArray(data.guardians)) guardians = data.guardians;  
+                if (Array.isArray(data.activityLog)) activityLog = data.activityLog;  
                 if (Array.isArray(data.financialTransactions)) financialTransactions = data.financialTransactions;  
                 if (Array.isArray(data.assets)) assets = data.assets;  
                 if (Array.isArray(data.complaints)) complaints = data.complaints;  
@@ -141,7 +142,7 @@
         function buildFullStateObject() {  
             return {  
                 systemTerms, rolePermissions, branches, programs, students,  
-                financialTransactions, assets, complaints, achievements, exams, guardians,  
+                financialTransactions, assets, complaints, achievements, exams, guardians, activityLog,  
                 employees, hierarchyOrder, activeTheme, customThemeColors: customThemeColors || null,  
                 customTextColor: customTextColor || null, headerTitleColor: headerTitleColor || null,  
                 loginScreenColor: loginScreenColor || null, systemLogo: systemLogo || null,  
@@ -737,6 +738,7 @@
 
             permissions.forEach(perm => { rolePermissions[roleKey][perm.id] = true; });  
             buildMatrixTable();  
+            logActivity(`فعّل كل الصلاحيات دفعة واحدة لدور [${systemTerms[roleKey]}]`);  
             showNotification(`تم تفعيل كل الصلاحيات لدور [${systemTerms[roleKey]}] بنجاح`, "success");  
             saveToLocalStorage();  
         }  
@@ -749,7 +751,9 @@
             }  
   
             rolePermissions[roleKey][permId] = checked;  
-            showNotification(`تم تحديث صلاحية [${permissions.find(p=>p.id===permId).name}] لدور [${systemTerms[roleKey]}] بنجاح`, 'success');  
+            const permName = permissions.find(p=>p.id===permId).name;  
+            logActivity(`${checked ? 'فعّل' : 'ألغى'} صلاحية [${permName}] لدور [${systemTerms[roleKey]}]`);  
+            showNotification(`تم تحديث صلاحية [${permName}] لدور [${systemTerms[roleKey]}] بنجاح`, 'success');  
               
             renderNavigationBar();  
             adjustActiveTab();  
@@ -873,6 +877,30 @@
         }  
 
         // ===== إدارة ترتيب التسلسل الإداري للمراسلات (متاحة لمدير النظام والإدارة العامة) =====  
+        // ===== عرض سجل التعديلات في جدول (آخر 300 إجراء، الأحدث أولاً) =====  
+        function renderActivityLog() {  
+            const tbody = document.getElementById('activity-log-tbody');  
+            if (!tbody) return;  
+
+            if (!Array.isArray(activityLog) || activityLog.length === 0) {  
+                tbody.innerHTML = '<tr><td colspan="4" class="p-6 text-center text-gray-400"><i class="fa-solid fa-clock-rotate-left text-xl block mb-2 opacity-40"></i>لا توجد إجراءات مسجّلة بعد</td></tr>';  
+                return;  
+            }  
+
+            let html = '';  
+            activityLog.forEach(entry => {  
+                html += `  
+                    <tr class="hover:bg-gray-50">  
+                        <td class="p-2">${entry.description}</td>  
+                        <td class="p-2 text-gray-500">${entry.userRole}</td>  
+                        <td class="p-2 font-bold">${entry.userName}</td>  
+                        <td class="p-2 font-mono text-gray-400" dir="ltr">${entry.date}</td>  
+                    </tr>  
+                `;  
+            });  
+            tbody.innerHTML = html;  
+        }  
+
         function renderHierarchyOrderEditor() {  
             const container = document.getElementById('hierarchy-order-list');  
             if (!container) return;  

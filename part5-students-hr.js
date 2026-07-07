@@ -62,6 +62,7 @@
             if (!confirmed) return;  
 
             students = students.filter(std => std.id !== id);  
+            logActivity(`حذف ملف الطالب [${s.name}] (الرقم التعريفي #${id})`);  
             showNotification(`تم حذف ملف الطالب [${s.name}] بنجاح`, "success");  
             refreshAllViews();  
             saveToLocalStorage();  
@@ -93,6 +94,7 @@
             toggleModal('hr-employee-modal', false);  
             document.getElementById('hr-employee-form').reset();  
 
+            logActivity(`سجّل موظفاً جديداً بالسجل العام: [${name}]`);  
             showNotification(`تم تسجيل الموظف [${name}] بالسجل العام بنجاح`, "success");  
             refreshAllViews();  
             saveToLocalStorage();  
@@ -141,6 +143,7 @@
             emp.gender = genderInputEdit ? genderInputEdit.value : (emp.gender || 'ذكر');  
 
             toggleModal('hr-employee-edit-modal', false);  
+            logActivity(`عدّل بيانات الموظف [${emp.name}]`);  
             showNotification(`تم تحديث بيانات الموظف [${emp.name}] بنجاح`, "success");  
 
             if (currentActiveUser.id === empId) {  

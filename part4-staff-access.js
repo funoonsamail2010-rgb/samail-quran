@@ -147,6 +147,7 @@
             }  
   
             employees = employees.filter(e => e.id !== empId);  
+            logActivity(`حذف سجل الموظف [${emp.name}] بالكامل من المنظومة`);  
             showNotification(`تم حذف سجل الموظف [${emp.name}] بالكامل من المنظومة`, "success");  
               
             renderRoleSwitcher();  
@@ -181,6 +182,7 @@
             emp.role = '';  
             emp.assignments = [];  
 
+            logActivity(`سحب صلاحية الدخول عن [${emp.name}]`);  
             showNotification(`تم سحب صلاحية الدخول عن [${emp.name}] بنجاح، وبقي في السجل العام`, "success");  
             renderRoleSwitcher();  
             refreshAllViews();  
@@ -559,6 +561,7 @@
             if (!confirmed) return;  
 
             branches = branches.filter(b => b !== branchName);  
+            logActivity(`حذف الحلقة [${branchName}]`);  
             showNotification(`تم حذف الحلقة [${branchName}] بنجاح`, "success");  
             refreshAllViews();  
             saveToLocalStorage();  
@@ -596,6 +599,7 @@
             if (!confirmed) return;  
 
             programs = programs.filter(p => p.name !== programName);  
+            logActivity(`حذف البرنامج [${programName}]`);  
             showNotification(`تم حذف البرنامج [${programName}] بنجاح`, "success");  
             refreshAllViews();  
             saveToLocalStorage();  
@@ -821,6 +825,7 @@
             document.getElementById('student-form').reset();  
             clearSignaturePad();  
 
+            logActivity(`سجّل طالباً جديداً: [${name}] في حلقة [${branch}] (الرقم التعريفي #${newStd.id})`);  
             showNotification(`تم قيد وتسجيل الطالب: [${name}] بنجاح في حلقة [${branch}] برقمه التعريفي #${newStd.id}`, 'success');  
             refreshAllViews();  
             saveToLocalStorage();  

@@ -248,6 +248,23 @@
         let students = [];  
         // سجل أولياء الأمور: كل ولي أمر له سجل مستقل مرتبط بكل أبنائه المسجلين  
         let guardians = [];  
+        // سجل التعديلات: يوثّق كل إجراء مهم (من قام به، ماذا فعل، متى) للمساءلة والشفافية  
+        let activityLog = [];  
+
+        // تسجيل إجراء جديد في سجل التعديلات، مع الحفاظ على حد أقصى معقول لحجم السجل  
+        function logActivity(description) {  
+            try {  
+                const roleName = (typeof systemTerms !== 'undefined' && systemTerms[currentActiveUser.role]) || currentActiveUser.role;  
+                activityLog.unshift({  
+                    userName: currentActiveUser.name,  
+                    userRole: roleName,  
+                    description: description,  
+                    date: nowStr()  
+                });  
+                if (activityLog.length > 300) activityLog = activityLog.slice(0, 300);  
+            } catch (e) { /* لا نسمح لخطأ في التسجيل بإيقاف العملية الأساسية أبداً */ }  
+        }  
+
   
         // سجل الحركات المالية (إيرادات ومصروفات) — يبدأ فارغاً تماماً  
         let financialTransactions = [];  
@@ -386,6 +403,7 @@
                 ['samail_programs', JSON.stringify(programs)],  
                 ['samail_students', JSON.stringify(students)],  
                 ['samail_guardians', JSON.stringify(guardians)],  
+                ['samail_activityLog', JSON.stringify(activityLog)],  
                 ['samail_financialTransactions', JSON.stringify(financialTransactions)],  
                 ['samail_assets', JSON.stringify(assets)],  
                 ['samail_complaints', JSON.stringify(complaints)],  
@@ -528,6 +546,9 @@
             const loadedGuardians = safeLoadJSON('samail_guardians');  
             if (Array.isArray(loadedGuardians)) guardians = loadedGuardians;  
 
+            const loadedActivityLog = safeLoadJSON('samail_activityLog');  
+            if (Array.isArray(loadedActivityLog)) activityLog = loadedActivityLog;  
+
             const loadedTransactions = safeLoadJSON('samail_financialTransactions');  
             if (Array.isArray(loadedTransactions)) financialTransactions = loadedTransactions;  
 
@@ -626,6 +647,9 @@
             const confirmed = window.confirm("تنبيه هام جداً: سيتم حذف كافة الحلقات والبرامج والطلاب والموظفين والمستخدمين والمعاملات المالية وكل التخصيصات المدخلة نهائياً، والعودة لنظام فارغ تماماً لا يحتوي إلا على حساب الإدارة العامة (admin) لتتمكن من البدء وبناء المنظومة من الصفر. هل أنت متأكد تماماً من المتابعة؟");  
             if (!confirmed) return;  
 
+            // تسجيل هذا الإجراء الحاسم قبل التصفير مباشرة، ليبقى أثره موثَّقاً حتى بعد تصفير كل شيء آخر  
+            logActivity("قام بتصفير المنظومة بالكامل (إعادة تعيين شاملة لكل البيانات)");  
+
             // منع أي عملية حفظ تلقائي (عند الإغلاق أو إعادة التحميل) من إعادة كتابة البيانات القديمة   
             // فوق التصفير الذي قمنا به للتو  
             suppressAutoSave = true;  
@@ -639,6 +663,7 @@
                 systemTerms: systemTerms, rolePermissions: rolePermissions,  
                 branches: [], programs: [], students: [], financialTransactions: [], assets: [],  
                 complaints: [], achievements: [], exams: [], guardians: [],  
+                activityLog: activityLog,  
                 employees: [{ id: 1, name: "الإدارة العامة للمنظومة", role: "role_0", username: "admin", password: "admin123", status: "نشط", email: "admin@samail.org" }],  
                 hierarchyOrder: hierarchyOrder, activeTheme: 'quranGreen', customThemeColors: null,  
                 customTextColor: null, headerTitleColor: null, loginScreenColor: null, systemLogo: null,  

@@ -385,6 +385,7 @@
             if (tabId === 'settings') {  
                 renderTermsEditor();  
                 renderHierarchyOrderEditor();  
+                renderActivityLog();  
             }  
   
             refreshAllViews();  
