@@ -3551,49 +3551,31 @@ function doGet(e) {
 
         // ===== تصفير الحسابات المالية فقط (حذف السندات وتصفير الأرصدة دون التأثير على الطلاب أو الموظفين) =====  
         function resetFinancialAccounts() {  
-            if (!hasPermission(16) && !hasPermission(15) && currentActiveUser && currentActiveUser.role !== 'role_0' && currentActiveUser.role !== 'role_2') {  
+            if (!hasPermission(16) && !hasPermission(15) && currentActiveUser && currentActiveUser.role !== 'role_0') {  
                 showNotification("لا تملك الصلاحية الكافية لتصفير الحسابات المالية.", "warn");  
                 return;  
             }  
 
-            const confirmed = window.confirm("سيتم حذف كافة سندات القبض والصرف وتصفير الرصيد المالي بالكامل بشكل نهائي من المتصفح ومن Firebase، مع الإبقاء على بيانات الطلاب والموظفين كما هي. هل تريد المتابعة؟");  
+            if (financialTransactions.length === 0) {  
+                showNotification("لا توجد حركات مالية مسجلة حالياً لتصفيرها.", "warn");  
+                return;  
+            }  
+
+            const confirmed = window.confirm("سيتم حذف كافة سندات القبض والصرف وتصفير الرصيد المالي بالكامل بشكل نهائي، مع الإبقاء على بيانات الطلاب والموظفين كما هي. هل تريد المتابعة؟");  
             if (!confirmed) return;  
 
-            try {
-                financialTransactions.forEach(t => markDeletedEntity('financial', t, t.id));
-                markCollectionReset('financial');
-                financialTransactions = [];
+            financialTransactions.forEach(t => markDeletedEntity('financial', t, t.id));
+            markCollectionReset('financial');
+            financialTransactions = [];  
 
-                // ختم زمني جديد حتى لا تقبل الصفحة أي لقطة قديمة من Firebase بعد التصفير.
-                lastLocalChangeTimestamp = Date.now();
-                try { localStorage.setItem('samail_lastLocalChangeTimestamp', String(lastLocalChangeTimestamp)); } catch (e) {}
+            refreshAllViews();  
+            const saved = saveToLocalStorage();  
 
-                refreshAllViews();
-
-                // نحفظ محلياً أولاً بدون دفع كامل للحالة، ثم نرسل تحديثاً محدداً إلى Firebase.
-                const saved = saveToLocalStorage(false);
-
-                if (firebaseDb) {
-                    updateHeaderSaveIndicator('pending');
-                    firebaseDb.ref('samailData').update({
-                        financialTransactions: [],
-                        deletedRecords: deletedRecords || {},
-                        lastModified: lastLocalChangeTimestamp
-                    }).then(function () {
-                        updateHeaderSaveIndicator('success');
-                        showNotification("تم تصفير الحسابات المالية نهائياً من المتصفح وFirebase. لن تعود السندات بعد تسجيل الخروج.", "success");
-                    }).catch(function (err) {
-                        console.error('Financial reset Firebase update failed:', err);
-                        updateHeaderSaveIndicator('error');
-                        showNotification("تم التصفير محلياً، لكن فشل تحديث Firebase. تأكد من الاتصال ثم اضغط التصفير مرة أخرى حتى لا تعود البيانات.", "warn");
-                    });
-                } else {
-                    showNotification(saved ? "تم تصفير الحسابات المالية محلياً. لا يوجد اتصال Firebase حالياً." : "تم التصفير في الواجهة، لكن حدث خلل أثناء الحفظ المحلي.", saved ? "success" : "warn");
-                }
-            } catch (err) {
-                console.error('resetFinancialAccounts error:', err);
-                showNotification("حدث خطأ أثناء تصفير الحسابات: " + err.message, "warn");
-            }
+            if (saved) {  
+                showNotification("تم تصفير الحسابات المالية بنجاح، وتم حفظ التصفير بشكل دائم ولن تعود السندات القديمة بعد تسجيل الخروج.", "success");  
+            } else {  
+                showNotification("تم التصفير في الواجهة، لكن حدث خلل أثناء حفظه بشكل دائم بالمتصفح — راجع التنبيه أعلاه لمعرفة السبب.", "warn");  
+            }  
         }  
 
         // ===== ربط السندات المالية مباشرة بـ Google Sheet عبر Google Apps Script Web App =====  
@@ -5513,99 +5495,6 @@ function doGet(e) {
             }  
         }  
   
-
-        function applyDashboardPermissionVisibility() {
-            if (!currentActiveUser) return;
-
-            const isRootUser = currentActiveUser.role === 'role_0' || currentActiveUser.role === 'role_2';
-            const can = (permId) => isRootUser || hasPermission(permId);
-            const setStat = (id, text) => { const el = document.getElementById(id); if (el) el.innerText = text; };
-            const toggleByValueId = (valueId, allowed) => {
-                const valueEl = document.getElementById(valueId);
-                if (!valueEl) return false;
-                const card = valueEl.closest('.card-elevated');
-                if (!card) return false;
-                card.classList.toggle('hidden', !allowed);
-                return allowed;
-            };
-
-            const scopedStudents = getFilteredData(students);
-            const scopedTransactions = getFilteredData(financialTransactions);
-            const scopedAssets = getFilteredData(assets);
-            const scopedAchievements = getFilteredData(achievements);
-            const scopedExams = getFilteredData(exams);
-            const visibleComplaints = getVisibleComplaintsForCurrentUser();
-
-            const canViewStudents = can(7) || can(8);
-            const canViewFinance = can(13) || can(14) || can(15) || can(16) || can(17);
-            const canViewEmployees = can(9);
-            const canViewBranches = can(4) || can(5);
-            const canViewPrograms = can(6);
-            const canViewAchievements = can(10);
-            const canViewExams = can(11);
-            const canViewAssets = can(20);
-            const canViewComplaints = can(24) || can(27);
-
-            // البطاقة الأساسية للطلاب لا تظهر إلا لمن يملك صلاحيات الطلبة أو التسجيل.
-            toggleByValueId('stat-students-count', canViewStudents);
-            if (canViewStudents) setStat('stat-students-count', `${scopedStudents.length} ${systemTerms.student_singular}`);
-
-            // البطاقات المالية لا تظهر إلا لمن له صلاحيات مالية.
-            const income = scopedTransactions.filter(t => t.type === 'receipt').reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-            const expense = scopedTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-            ['stat-total-income-card', 'stat-total-expense-card', 'stat-balance-card'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.classList.toggle('hidden', !canViewFinance);
-            });
-            if (canViewFinance) {
-                setStat('stat-total-income', `${income.toFixed(3)} ر.ع`);
-                setStat('stat-total-expense', `${expense.toFixed(3)} ر.ع`);
-                setStat('stat-balance', `${(income - expense).toFixed(3)} ر.ع`);
-            }
-
-            // الإحصائيات الشاملة: تظهر كل بطاقة حسب الصلاحية فقط، وبنطاق الحلقة للمستخدم غير العام.
-            const panel = document.getElementById('admin-stats-panel');
-            const totalAssetsQty = scopedAssets.reduce((sum, a) => sum + (parseInt(a.qty) || 0), 0);
-            const activeComplaints = visibleComplaints.filter(c => c.status === 'نشط').length;
-            const approvedComplaints = visibleComplaints.filter(c => c.status === 'معتمد رسمياً').length;
-
-            let anyExtendedVisible = false;
-            anyExtendedVisible = toggleByValueId('stat-staff-count', canViewEmployees) || anyExtendedVisible;
-            anyExtendedVisible = toggleByValueId('stat-branches-count', canViewBranches) || anyExtendedVisible;
-            anyExtendedVisible = toggleByValueId('stat-programs-count', canViewPrograms) || anyExtendedVisible;
-            anyExtendedVisible = toggleByValueId('stat-achievements-count', canViewAchievements) || anyExtendedVisible;
-            anyExtendedVisible = toggleByValueId('stat-exams-count', canViewExams) || anyExtendedVisible;
-            anyExtendedVisible = toggleByValueId('stat-assets-count', canViewAssets) || anyExtendedVisible;
-            anyExtendedVisible = toggleByValueId('stat-complaints-active-count', canViewComplaints) || anyExtendedVisible;
-            anyExtendedVisible = toggleByValueId('stat-complaints-approved-count', canViewComplaints) || anyExtendedVisible;
-
-            if (panel) panel.classList.toggle('hidden', !anyExtendedVisible);
-
-            if (canViewEmployees) setStat('stat-staff-count', `${getFilteredData(employees).length} موظف`);
-            if (canViewBranches) setStat('stat-branches-count', `${isRootUser || currentActiveUser.branch === "كامل الفروع" ? branches.length : 1} حلقة`);
-            if (canViewPrograms) setStat('stat-programs-count', `${programs.length} برنامج`);
-            if (canViewAchievements) setStat('stat-achievements-count', `${scopedAchievements.length} إنجاز`);
-            if (canViewExams) setStat('stat-exams-count', `${scopedExams.length} اختبار`);
-            if (canViewAssets) setStat('stat-assets-count', `${totalAssetsQty} عهدة`);
-            if (canViewComplaints) {
-                setStat('stat-complaints-active-count', `${activeComplaints} بلاغ`);
-                setStat('stat-complaints-approved-count', `${approvedComplaints} بلاغ`);
-            }
-
-            const financeIndependencePanel = document.getElementById('branch-financial-independence-panel');
-            if (financeIndependencePanel) {
-                financeIndependencePanel.classList.toggle('hidden', !(canViewFinance && (isRootUser || currentActiveUser.branch === "كامل الفروع")));
-            }
-
-            const visibleTopCards = Array.from(document.querySelectorAll('#stats-grid .card-elevated')).filter(card => !card.classList.contains('hidden')).length;
-            const statsGrid = document.getElementById('stats-grid');
-            if (statsGrid) {
-                statsGrid.className = visibleTopCards > 1
-                    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
-                    : "grid grid-cols-1 gap-4";
-            }
-        }
-
         function refreshAllViews() {  
             populateSelectOptions();  
   
@@ -5712,11 +5601,9 @@ function doGet(e) {
             // ===== إظهار زر تصفير الحسابات المالية فقط لمن يملك صلاحية إدارة المصروفات/الإيرادات أو الإدارة العامة =====  
             const resetFinBtn = document.getElementById('reset-financial-btn');  
             if (resetFinBtn) {  
-                const canResetFinance = hasPermission(16) || hasPermission(15) || (currentActiveUser && (currentActiveUser.role === 'role_0' || currentActiveUser.role === 'role_2'));  
+                const canResetFinance = hasPermission(16) || hasPermission(15) || (currentActiveUser && currentActiveUser.role === 'role_0');  
                 resetFinBtn.classList.toggle('hidden', !canResetFinance);  
             }  
-
-            applyDashboardPermissionVisibility();
   
             const dashStudentsTbody = document.getElementById('dashboard-students-tbody');  
             if (dashStudentsTbody) {  
