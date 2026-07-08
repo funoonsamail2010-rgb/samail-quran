@@ -723,6 +723,12 @@
             const confirmed = window.confirm("تنبيه هام جداً: سيتم حذف كافة الحلقات والبرامج والطلاب والموظفين والمستخدمين والمعاملات المالية وكل التخصيصات المدخلة نهائياً، والعودة لنظام فارغ تماماً لا يحتوي إلا على حساب الإدارة العامة (admin) لتتمكن من البدء وبناء المنظومة من الصفر. هل أنت متأكد تماماً من المتابعة؟");  
             if (!confirmed) return;  
 
+            // ===== أولى خطوة إطلاقاً: إيقاف أي مزامنة تلقائية جارية مع Google Sheet فوراً —   
+            // وإلا فقد تُفاجئنا دورة مزامنة جارية بالفعل في الخلفية (كل 30 ثانية) بسحب الصفوف القديمة   
+            // من الجدول وإعادة كتابتها فوق التصفير الذي سنقوم به للتو =====  
+            stopAutoSyncInterval();  
+            autoSyncFromSheetEnabled = false;  
+
             // تسجيل هذا الإجراء الحاسم قبل التصفير مباشرة، ليبقى أثره موثَّقاً حتى بعد تصفير كل شيء آخر  
             logActivity("قام بتصفير المنظومة بالكامل (إعادة تعيين شاملة لكل البيانات)");  
 
@@ -784,16 +790,15 @@
             const confirmed = window.confirm(confirmMsg);  
             if (!confirmed) return;  
 
-            financialTransactions = [];  
-
-            // ===== إيقاف المزامنة التلقائية مع Google Sheet فوراً: وإلا فإن الجدول لا يزال يحمل   
-            // السندات القديمة، وستُسحَب وتُعاد إضافتها تلقائياً خلال ثوانٍ وكأن التصفير لم يحدث =====  
+            // إيقاف المزامنة التلقائية أولاً وقبل أي شيء آخر، لإغلاق أي فرصة زمنية لتعارض مع دورة سحب جارية  
             if (autoSyncFromSheetEnabled) {  
                 autoSyncFromSheetEnabled = false;  
                 stopAutoSyncInterval();  
                 const toggle = document.getElementById('auto-sync-sheet-toggle');  
                 if (toggle) toggle.checked = false;  
             }  
+
+            financialTransactions = [];  
 
             logActivity('صفّر كل الحسابات والسندات المالية بالكامل');  
             refreshAllViews();  
