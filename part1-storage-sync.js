@@ -388,6 +388,13 @@
                 // تصل من Firebase بعد إعادة فتح الصفحة  
                 lastLocalChangeTimestamp = Date.now();  
                 try { localStorage.setItem('samail_lastLocalChangeTimestamp', String(lastLocalChangeTimestamp)); } catch (e) { /* تجاهل */ }  
+                // [إصلاح] تسجيل أن هناك تعديلاً محلياً حقيقياً حصل، بصرف النظر التام عن كون الاتصال بـ   
+                // Firebase قد اكتمل فعلياً أم لا بعد (فقد يكون لا يزال قيد الإنشاء بشكل غير متزامن).   
+                // لولا هذا السطر، فإن أي تعديل/حذف يقوم به المستخدم خلال الثواني الأولى من فتح الصفحة   
+                // (قبل اكتمال الاتصال بالسحابة) كان يُفقد بمجرد وصول أول لقطة بيانات قديمة من Firebase.  
+                if (!hasReceivedFirstFirebaseSnapshot) {  
+                    hasLocalChangesBeforeFirstSnapshot = true;  
+                }  
             }  
             // ملاحظة هامة: تُحفظ البيانات الحرجة (الطلاب، الحلقات، السندات المالية، الموظفين،   
             // الصلاحيات، المراسلات...) أولاً وبشكل مستقل تماماً عن حفظ الشعار (وهو أكبر عنصر بيانات   
@@ -454,14 +461,8 @@
 
             // دفع أي تعديل محلي فوراً لقاعدة البيانات الحية (Firebase) إن كانت متصلة، لتنتقل كل التعديلات   
             // تلقائياً لبقية الأجهزة دون أي خطوة يدوية إضافية  
-            if (pushToFirebase && firebaseDb && !isApplyingRemoteUpdate) {  
-                if (hasReceivedFirstFirebaseSnapshot) {  
-                    pushFullStateToFirebase();  
-                } else {  
-                    // لم تصل بعد أول لقطة بيانات من Firebase؛ نُسجّل أن هناك تعديلاً محلياً حقيقياً حصل   
-                    // في هذه الأثناء، حتى لا تُمحى هذه التعديلات لاحقاً عند وصول تلك اللقطة  
-                    hasLocalChangesBeforeFirstSnapshot = true;  
-                }  
+            if (pushToFirebase && firebaseDb && !isApplyingRemoteUpdate && hasReceivedFirstFirebaseSnapshot) {  
+                pushFullStateToFirebase();  
             }  
 
             return allOk;  
