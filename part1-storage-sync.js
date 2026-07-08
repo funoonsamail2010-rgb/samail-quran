@@ -775,16 +775,32 @@
                 return;  
             }  
 
-            const confirmed = window.confirm("سيتم حذف كافة سندات القبض والصرف وتصفير الرصيد المالي بالكامل بشكل نهائي، مع الإبقاء على بيانات الطلاب والموظفين كما هي. هل تريد المتابعة؟");  
+            let confirmMsg = "سيتم حذف كافة سندات القبض والصرف وتصفير الرصيد المالي بالكامل بشكل نهائي، مع الإبقاء على بيانات الطلاب والموظفين كما هي.";  
+            if (autoSyncFromSheetEnabled && googleSheetWebhookUrl) {  
+                confirmMsg += "\n\nتنبيه هام: لديك مزامنة تلقائية مفعّلة مع Google Sheet. سيتم إيقافها تلقائياً الآن لمنع عودة السندات القديمة من الجدول، ويجب عليك حذف صفوف السندات يدوياً من ذلك الجدول قبل إعادة تفعيل المزامنة، وإلا ستعود البيانات القديمة عند إعادة التفعيل.";  
+            }  
+            confirmMsg += "\n\nهل تريد المتابعة؟";  
+
+            const confirmed = window.confirm(confirmMsg);  
             if (!confirmed) return;  
 
             financialTransactions = [];  
 
+            // ===== إيقاف المزامنة التلقائية مع Google Sheet فوراً: وإلا فإن الجدول لا يزال يحمل   
+            // السندات القديمة، وستُسحَب وتُعاد إضافتها تلقائياً خلال ثوانٍ وكأن التصفير لم يحدث =====  
+            if (autoSyncFromSheetEnabled) {  
+                autoSyncFromSheetEnabled = false;  
+                stopAutoSyncInterval();  
+                const toggle = document.getElementById('auto-sync-sheet-toggle');  
+                if (toggle) toggle.checked = false;  
+            }  
+
+            logActivity('صفّر كل الحسابات والسندات المالية بالكامل');  
             refreshAllViews();  
             const saved = saveToLocalStorage();  
 
             if (saved) {  
-                showNotification("تم تصفير الحسابات المالية بنجاح، وتم حفظ التصفير بشكل دائم بالمتصفح.", "success");  
+                showNotification("تم تصفير الحسابات المالية بنجاح. تنبيه: أُوقفت المزامنة التلقائية مع Google Sheet تلقائياً (إن كانت مفعّلة) لمنع عودة البيانات القديمة — احذف صفوف السندات من الجدول يدوياً قبل إعادة تفعيلها.", "success");  
             } else {  
                 showNotification("تم التصفير في الواجهة، لكن حدث خلل أثناء حفظه بشكل دائم بالمتصفح — راجع التنبيه أعلاه لمعرفة السبب.", "warn");  
             }  
