@@ -779,11 +779,11 @@
                     </div>  
                     <div class="flex items-center gap-1.5">  
                         <input type="text" id="term-input-${key}" value="${systemTerms[key]}" onkeydown="if(event.key==='Enter'){event.preventDefault(); saveSingleTerm('${key}');}" class="w-full text-xs border border-gray-300 rounded p-2 focus:ring-1 focus:ring-custom-primary focus:outline-none">  
-                        <button type="button" onclick="saveSingleTerm('${key}')" title="حفظ العنوان والقيمة معاً فوراً دون التأثير على البقية" class="bg-custom-primary bg-custom-primary-hover text-white text-[11px] px-2.5 py-2 rounded-lg font-bold transition flex-shrink-0">  
+                        <button type="button" onclick="saveSingleTerm('${key}')" title="حفظ العنوان والقيمة والوصف معاً فوراً دون التأثير على البقية" class="bg-custom-primary bg-custom-primary-hover text-white text-[11px] px-2.5 py-2 rounded-lg font-bold transition flex-shrink-0">  
                             <i class="fa-solid fa-check"></i>  
                         </button>  
                     </div>  
-                    <span class="block text-[10px] text-gray-400 font-semibold leading-tight">${meta.desc}</span>  
+                    <input type="text" id="term-desc-${key}" value="${meta.desc}" title="الوصف التوضيحي أسفل الحقل — قابل للتعديل بحرية أيضاً" onkeydown="if(event.key==='Enter'){event.preventDefault(); saveSingleTerm('${key}');}" class="w-full text-[10px] text-gray-500 font-semibold border border-gray-200 rounded p-1 focus:ring-1 focus:ring-custom-primary focus:outline-none">  
                 </div>  
             `;  
 
@@ -840,6 +840,7 @@
         function saveSingleTerm(key) {  
             const input = document.getElementById(`term-input-${key}`);  
             const labelInput = document.getElementById(`term-label-${key}`);  
+            const descInput = document.getElementById(`term-desc-${key}`);  
             if (!input) return;  
 
             const newValue = input.value.trim();  
@@ -855,6 +856,10 @@
                 if (newLabel && termsMetadata[key]) {  
                     termsMetadata[key].label = newLabel;  
                 }  
+            }  
+
+            if (descInput && termsMetadata[key]) {  
+                termsMetadata[key].desc = descInput.value.trim();  
             }  
 
             applySystemTerms();  
