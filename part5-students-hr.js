@@ -222,10 +222,9 @@
                 return;  
             }  
   
-            const isExist = employees.find(e => e.id !== empId && (  
-                (e.email && email && e.email.toLowerCase() === email.toLowerCase()) ||  
-                (e.username && username && e.username.toLowerCase() === username.toLowerCase())  
-            ));  
+            // [إصلاح] تحويل كل قيمة إلى نص عبر String(...) قبل toLowerCase، حماية من نفس مشكلة   
+            // توقف الحفظ لو كان أحد الموظفين لديه بريد/اسم مستخدم مخزَّناً كرقم أو غير معرَّف  
+            const isExist = employees.find(e => e.id !== empId && (String(e.email || '').toLowerCase() === email.toLowerCase() || String(e.username || '').toLowerCase() === username.toLowerCase()));  
             if (isExist) {  
                 showNotification("البريد الإلكتروني أو اسم المستخدم مستخدم لموظف آخر!", "warn");  
                 return;  

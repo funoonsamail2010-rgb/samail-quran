@@ -401,11 +401,10 @@
             }  
   
             // التحقق من تكرار البريد الإلكتروني أو اسم المستخدم لموظف آخر  
-            // (بشكل آمن حتى لو كان لدى بعض السجلات القديمة حقل بريد أو اسم مستخدم غير معرَّف إطلاقاً)  
-            const isDuplicate = employees.find(e => e.id !== empId && (  
-                (e.email && email && e.email.toLowerCase() === email.toLowerCase()) ||  
-                (e.username && username && e.username.toLowerCase() === username.toLowerCase())  
-            ));  
+            // [إصلاح] نحوّل كل قيمة إلى نص أولاً عبر String(...) قبل استخدام toLowerCase، لأن بعض   
+            // الموظفين قد يكون اسم المستخدم أو البريد لديهم مخزَّناً كرقم أو غير معرَّف (undefined)،   
+            // وهذا كان يوقف الحفظ بالكامل بخطأ "toLowerCase is not a function" فور وجود حالة كهذه.  
+            const isDuplicate = employees.find(e => e.id !== empId && (String(e.email || '').toLowerCase() === email.toLowerCase() || String(e.username || '').toLowerCase() === username.toLowerCase()));  
             if (isDuplicate) {  
                 showNotification("البريد الإلكتروني أو اسم المستخدم مستخدم لموظف آخر!", "warn");  
                 return;  
