@@ -741,7 +741,6 @@
                     programsTbody.innerHTML += `  
                         <tr class="hover:bg-gray-50 border-b border-gray-100 transition text-center">  
                             <td class="p-3 text-right font-semibold text-gray-950">${p.name}</td>  
-                            <td class="p-3 font-bold text-custom-primary">${p.fee.toFixed(3)} ر.ع</td>  
                             <td class="p-3"><span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">فعال</span></td>  
                             <td class="p-3 no-print">  
                                 <button onclick="deleteProgram('${p.name.replace(/'/g, "\\'")}')" class="bg-red-500 hover:bg-red-600 text-white text-[10px] px-2.5 py-1.5 rounded font-bold shadow transition" title="حذف البرنامج">  
@@ -752,7 +751,32 @@
                     `;  
                 });  
                 if (programs.length === 0) {  
-                    programsTbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-gray-400"><i class="fa-solid fa-graduation-cap text-2xl block mb-2 opacity-40"></i>لا توجد برامج مسجلة بعد — استخدم النموذج أعلاه لإضافة أول برنامج</td></tr>';  
+                    programsTbody.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-400"><i class="fa-solid fa-graduation-cap text-2xl block mb-2 opacity-40"></i>لا توجد برامج مسجلة بعد — استخدم النموذج أعلاه لإضافة أول برنامج</td></tr>';  
+                }  
+            }  
+
+            // جدول الرسوم الدراسية المستقل تماماً عن جدول أسماء البرامج  
+            const feesTbody = document.getElementById('program-fees-tbody');  
+            if (feesTbody) {  
+                feesTbody.innerHTML = '';  
+                programs.forEach(p => {  
+                    const safeName = p.name.replace(/'/g, "\\'");  
+                    feesTbody.innerHTML += `  
+                        <tr class="hover:bg-gray-50 border-b border-gray-100 transition text-center">  
+                            <td class="p-3 text-right font-semibold text-gray-950">${p.name}</td>  
+                            <td class="p-3">  
+                                <input type="number" step="0.001" id="fee-input-${p.name}" value="${p.fee}" class="w-24 text-center text-xs border border-gray-300 rounded p-1.5 focus:ring-1 focus:ring-amber-500 focus:outline-none">  
+                            </td>  
+                            <td class="p-3 no-print">  
+                                <button onclick="updateProgramFee('${safeName}')" class="bg-amber-500 hover:bg-amber-600 text-white text-[10px] px-3 py-1.5 rounded font-bold shadow transition" title="حفظ الرسوم الجديدة">  
+                                    <i class="fa-solid fa-check"></i> حفظ  
+                                </button>  
+                            </td>  
+                        </tr>  
+                    `;  
+                });  
+                if (programs.length === 0) {  
+                    feesTbody.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-400"><i class="fa-solid fa-coins text-2xl block mb-2 opacity-40"></i>لا توجد برامج بعد لعرض رسومها</td></tr>';  
                 }  
             }  
 

@@ -588,6 +588,29 @@
         }  
 
         // ===== حذف برنامج: محمي من حذف برنامج مسجّل به طلاب حالياً =====  
+        // تحديث الرسوم الدراسية لبرنامج معيّن بشكل مستقل عن جدول أسماء البرامج نفسها  
+        function updateProgramFee(programName) {  
+            const program = programs.find(p => p.name === programName);  
+            if (!program) return;  
+
+            const input = document.getElementById(`fee-input-${programName}`);  
+            if (!input) return;  
+
+            const newFee = parseFloat(input.value);  
+            if (isNaN(newFee) || newFee < 0) {  
+                showNotification("الرجاء إدخال قيمة رسوم صحيحة.", "warn");  
+                return;  
+            }  
+
+            const oldFee = program.fee;  
+            program.fee = newFee;  
+
+            logActivity(`عدّل الرسوم الدراسية لبرنامج [${programName}] من ${oldFee.toFixed(3)} ر.ع إلى ${newFee.toFixed(3)} ر.ع`);  
+            showNotification(`تم تحديث رسوم برنامج [${programName}] إلى ${newFee.toFixed(3)} ر.ع بنجاح`, "success");  
+            refreshAllViews();  
+            saveToLocalStorage();  
+        }  
+
         function deleteProgram(programName) {  
             const linkedStudents = students.filter(s => s.program === programName).length;  
             if (linkedStudents > 0) {  
