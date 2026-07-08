@@ -37,7 +37,7 @@
                 }  
   
                 programs.forEach(p => {  
-                    html += `<option value="${p.name}">${p.name} (الرسوم: ${p.fee} ر.ع)</option>`;  
+                    html += `<option value="${p.name}">${p.name}</option>`;  
                 });  
   
                 select.innerHTML = html;  

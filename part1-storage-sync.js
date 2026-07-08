@@ -643,6 +643,82 @@
         }  
   
         // تصفية وحذف كافة التعديلات واستعادة القيم الافتراضية  
+        // ===== نسخ احتياطي احترازي: يحفظ نسخة كاملة من كل البيانات في ملف على جهاز المستخدم نفسه،   
+        // بمعزل تام عن Firebase، ليكون خط دفاع أخير مستقل تماماً عن أي مشكلة قد تصيب القاعدة الحية =====  
+        function exportFullBackup() {  
+            try {  
+                const backup = buildFullStateObject();  
+                backup.backupCreatedAt = new Date().toISOString();  
+                backup.backupCreatedBy = currentActiveUser ? currentActiveUser.name : 'غير معروف';  
+
+                const jsonStr = JSON.stringify(backup, null, 2);  
+                const blob = new Blob([jsonStr], { type: 'application/json' });  
+                const url = URL.createObjectURL(blob);  
+
+                const now = new Date();  
+                const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;  
+                const centerName = (document.getElementById('center-title-display') && document.getElementById('center-title-display').innerText) || 'samail';  
+                const safeCenterName = centerName.replace(/[^ء-يa-zA-Z0-9]/g, '_');  
+                const filename = `نسخة-احتياطية-${safeCenterName}-${dateStr}.json`;  
+
+                const a = document.createElement('a');  
+                a.href = url;  
+                a.download = filename;  
+                document.body.appendChild(a);  
+                a.click();  
+                document.body.removeChild(a);  
+                URL.revokeObjectURL(url);  
+
+                logActivity('صدّر نسخة احتياطية كاملة من بيانات المنظومة');  
+                const indicatorEl = document.getElementById('last-backup-indicator');  
+                if (indicatorEl) indicatorEl.innerText = `آخر نسخة احتياطية صُدِّرت: ${now.toLocaleString('ar-OM')}`;  
+                showNotification('تم تصدير النسخة الاحتياطية بنجاح، تحقق من مجلد التنزيلات في جهازك', 'success');  
+                saveToLocalStorage();  
+            } catch (e) {  
+                console.error('Backup export failed:', e);  
+                showNotification('تعذر تصدير النسخة الاحتياطية، حاول مجدداً', 'warn');  
+            }  
+        }  
+
+        // استعادة نسخة احتياطية من ملف — إجراء حسّاس يستبدل كل البيانات الحالية، لذا يتطلب تأكيداً صريحاً  
+        function importFullBackup(event) {  
+            const file = event.target.files[0];  
+            if (!file) return;  
+
+            const reader = new FileReader();  
+            reader.onload = function (e) {  
+                try {  
+                    const backup = JSON.parse(e.target.result);  
+
+                    if (!backup || typeof backup !== 'object' || !Array.isArray(backup.employees)) {  
+                        showNotification('هذا الملف لا يبدو نسخة احتياطية صحيحة للمنظومة، تعذّرت الاستعادة.', 'warn');  
+                        event.target.value = '';  
+                        return;  
+                    }  
+
+                    const backupDate = backup.backupCreatedAt ? new Date(backup.backupCreatedAt).toLocaleString('ar-OM') : 'غير معروف';  
+                    const confirmed = window.confirm(`سيتم استبدال كل البيانات الحالية بالكامل بمحتوى هذه النسخة الاحتياطية (تاريخ إنشائها: ${backupDate}). هذا الإجراء لا يمكن التراجع عنه بعد الحفظ. هل أنت متأكد تماماً؟`);  
+                    if (!confirmed) { event.target.value = ''; return; }  
+
+                    backup.lastModified = Date.now();  
+                    isApplyingRemoteUpdate = true;  
+                    applyRemoteState(backup);  
+                    isApplyingRemoteUpdate = false;  
+
+                    logActivity(`استعاد نسخة احتياطية بتاريخ إنشاء: ${backupDate}`);  
+                    showNotification('تمت استعادة النسخة الاحتياطية بنجاح، وجارِ مزامنتها لكل الأجهزة', 'success');  
+                    pushFullStateToFirebase();  
+                    saveToLocalStorage();  
+                    event.target.value = '';  
+                } catch (err) {  
+                    console.error('Backup import failed:', err);  
+                    showNotification('تعذّرت قراءة ملف النسخة الاحتياطية، تأكد أنه ملف صحيح لم يُعدَّل يدوياً.', 'warn');  
+                    event.target.value = '';  
+                }  
+            };  
+            reader.readAsText(file);  
+        }  
+
         function resetToFactoryDefaults() {  
             const confirmed = window.confirm("تنبيه هام جداً: سيتم حذف كافة الحلقات والبرامج والطلاب والموظفين والمستخدمين والمعاملات المالية وكل التخصيصات المدخلة نهائياً، والعودة لنظام فارغ تماماً لا يحتوي إلا على حساب الإدارة العامة (admin) لتتمكن من البدء وبناء المنظومة من الصفر. هل أنت متأكد تماماً من المتابعة؟");  
             if (!confirmed) return;  
