@@ -87,7 +87,7 @@
 
             const newEmp = {  
                 id: newId, name, role: '', jobTitle, gender, branch, email, username: '', password: '',  
-                phone, idCard, joinDate, qualification, revenue: 0, expense: 0, assignments: [], status: 'نشط'  
+                phone, idCard, joinDate, qualification, assignments: [], status: 'نشط'  
             };  
 
             employees.push(newEmp);  
@@ -222,7 +222,10 @@
                 return;  
             }  
   
-            const isExist = employees.find(e => e.id !== empId && (e.email.toLowerCase() === email.toLowerCase() || (e.username && e.username.toLowerCase() === username.toLowerCase())));  
+            const isExist = employees.find(e => e.id !== empId && (  
+                (e.email && email && e.email.toLowerCase() === email.toLowerCase()) ||  
+                (e.username && username && e.username.toLowerCase() === username.toLowerCase())  
+            ));  
             if (isExist) {  
                 showNotification("البريد الإلكتروني أو اسم المستخدم مستخدم لموظف آخر!", "warn");  
                 return;  

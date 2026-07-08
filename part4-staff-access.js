@@ -211,8 +211,6 @@
             document.getElementById('edit-staff-idcard').value = emp.idCard || "";  
             document.getElementById('edit-staff-joindate').value = emp.joinDate || "";  
             document.getElementById('edit-staff-qualification').value = emp.qualification || "";  
-            document.getElementById('edit-staff-revenue').value = emp.revenue || 0;  
-            document.getElementById('edit-staff-expense').value = emp.expense || 0;  
 
             // تحميل تكليفات التدريس الحالية للموظف (إن وجدت) في حالة التحرير المؤقتة  
             currentEditStaffAssignments = Array.isArray(emp.assignments) ? emp.assignments.map(a => ({ ...a })) : [];  
@@ -388,8 +386,6 @@
             const idCard = document.getElementById('edit-staff-idcard').value.trim();  
             const joinDate = document.getElementById('edit-staff-joindate').value;  
             const qualification = document.getElementById('edit-staff-qualification').value;  
-            const revenue = parseFloat(document.getElementById('edit-staff-revenue').value) || 0;  
-            const expense = parseFloat(document.getElementById('edit-staff-expense').value) || 0;  
   
             if (!username || !password) {  
                 showNotification("يرجى إدخال اسم المستخدم وكلمة السر", "warn");  
@@ -405,7 +401,11 @@
             }  
   
             // التحقق من تكرار البريد الإلكتروني أو اسم المستخدم لموظف آخر  
-            const isDuplicate = employees.find(e => e.id !== empId && (e.email.toLowerCase() === email.toLowerCase() || e.username.toLowerCase() === username.toLowerCase()));  
+            // (بشكل آمن حتى لو كان لدى بعض السجلات القديمة حقل بريد أو اسم مستخدم غير معرَّف إطلاقاً)  
+            const isDuplicate = employees.find(e => e.id !== empId && (  
+                (e.email && email && e.email.toLowerCase() === email.toLowerCase()) ||  
+                (e.username && username && e.username.toLowerCase() === username.toLowerCase())  
+            ));  
             if (isDuplicate) {  
                 showNotification("البريد الإلكتروني أو اسم المستخدم مستخدم لموظف آخر!", "warn");  
                 return;  
@@ -425,8 +425,6 @@
             emp.idCard = idCard;  
             emp.joinDate = joinDate;  
             emp.qualification = qualification;  
-            emp.revenue = revenue;  
-            emp.expense = expense;  
             // تكليفات التدريس تُحفظ فقط لدور "المعلمة"؛ أي دور آخر تُصفَّر تكليفاته  
             emp.assignments = role === 'role_6' ? currentEditStaffAssignments.map(a => ({ ...a })) : [];  
   
